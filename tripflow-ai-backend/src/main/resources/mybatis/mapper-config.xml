@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE configuration PUBLIC "-//mybatis.org//DTD Config 3.0//EN" "https://mybatis.org/dtd/mybatis-3-config.dtd">
+
+<configuration>
+  <settings>
+    <setting name="mapUnderscoreToCamelCase" value="true" />
+    <setting name="jdbcTypeForNull" value="NULL" />
+  </settings>
+
+  <typeAliases>
+    <package name="com.tripflow.ai.travelgram.review.dto.entity"/>
+    <package name="com.tripflow.ai.planner.plan.dto.entity"/>
+    <package name="com.tripflow.ai.common.chat.dto"/>
+
+    <package name="com.tripflow.ai.travelgram.review.ai.dto.entity"/>
+    <package name="com.tripflow.ai.supporter.checklist.dto.entity"/>
+    <package name="com.tripflow.ai.supporter.imageSearch.dto.entity"/>
+    <package name="com.tripflow.ai.supporter.imageSearch.dto.response"/>
+    <package name="com.tripflow.ai.supporter.map.dto.entity"/>
+  </typeAliases>
+
+  <typeHandlers>
+    <typeHandler handler="com.tripflow.ai.common.global.typehandler.VectorTypeHandler" />
+    <typeHandler handler="com.tripflow.ai.common.global.typehandler.JsonListTypeHandler" />
+  </typeHandlers>
+
+</configuration>
