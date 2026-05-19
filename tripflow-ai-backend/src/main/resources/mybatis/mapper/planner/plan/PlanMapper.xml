@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripflow.ai.planner.plan.dao.PlanDao">
+
+  <!-- 전체 여행 플랜 가져오기 -->
+  <select id="selectPlanWithAllByUserId"
+        parameterType="long"
+        resultType="com.tripflow.ai.planner.plan.dto.entity.PlanScheduleRow">
+
+    SELECT
+        p.id              AS plan_id,
+        p.budget,
+        p.start_date,
+        p.end_date,
+
+        d.id              AS day_id,
+        d.day_index,
+        d.title           AS day_title,
+        d.plan_date,
+
+        pp.id             AS place_id,
+        pp.title          AS place_title,
+        pp.start_at,
+        pp.end_at,
+        pp.place_name,
+        pp.address,
+        pp.expected_cost,
+        pp.normalized_category,
+        pp.first_image,
+        pp.first_image2
+
+    FROM plans p
+    JOIN plan_days d   ON p.id = d.plan_id
+    JOIN plan_places pp ON d.id = pp.day_id
+
+    WHERE p.id = (
+        SELECT id
+        FROM plans
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    )
+
+    ORDER BY d.day_index ASC, pp.start_at ASC
+</select>
+
+
+ <select id="selectPlanWithAllByPlanId"
+        parameterType="long"
+        resultType="com.tripflow.ai.planner.plan.dto.entity.PlanScheduleRow">
+
+    SELECT
+        p.id              AS plan_id,
+        p.budget,
+        p.start_date,
+        p.end_date,
+
+        d.id              AS day_id,
+        d.day_index,
+        d.title           AS day_title,
+        d.plan_date,
+
+        pp.id             AS place_id,
+        pp.title          AS place_title,
+        pp.start_at,
+        pp.end_at,
+        pp.place_name,
+        pp.address,
+        pp.expected_cost,
+        pp.normalized_category,
+        pp.first_image,
+        pp.first_image2,
+        pp.is_Ended
+
+    FROM plans p
+    JOIN plan_days d   ON p.id = d.plan_id
+    JOIN plan_places pp ON d.id = pp.day_id
+
+    WHERE p.id = #{planId}
+
+    ORDER BY d.day_index ASC, pp.start_at ASC
+</select>
+
+<select id="getUserLastVisitedPlaces" resultType="String">
+    SELECT DISTINCT
+        pp.place_name
+
+    FROM plans p
+    JOIN plan_days d    ON p.id = d.plan_id
+    JOIN plan_places pp ON d.id = pp.day_id
+
+    WHERE p.id = (
+        SELECT id
+        FROM plans
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    )
+</select>
+
+
+  <select id="selectPlanIdAndCurrentDayIndex" parameterType="long" resultType="com.tripflow.ai.planner.plan.dto.response.ActivePlanInfoResponse">
+      SELECT
+        p.id AS plan_id,
+        d.day_index
+      FROM plans p
+      LEFT JOIN plan_days d
+          ON p.id = d.plan_id
+      -- AND d.plan_date = DATE '2025-12-19'   -- 테스트
+        AND d.plan_date = CURRENT_DATE
+      WHERE p.user_id = #{userId}
+      ORDER BY p.id DESC
+      LIMIT 1
+  </select>
+
+  <select id="selectPlanById" parameterType="long" resultType="Plan">
+    SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+    FROM plans
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectPlansByUserId" parameterType="long" resultType="Plan">
+    SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+    FROM plans
+    WHERE user_id = #{userId}
+    ORDER BY created_at DESC
+  </select>
+
+  <select id="selectActiveTravelPlanByUserId" parameterType="long" resultType="Plan">
+    <!-- SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+    FROM plans
+    WHERE user_id = #{userId} AND (is_ended = false OR is_ended IS NULL)
+    ORDER BY created_at DESC
+    LIMIT 1 -->
+
+    SELECT id, user_id, budget, start_date, end_date,
+       created_at, updated_at, is_ended, title
+    FROM (
+        SELECT *
+        FROM plans
+        WHERE user_id = #{userId}
+        ORDER BY created_at DESC
+        LIMIT 1
+    ) p
+    WHERE p.is_ended IS DISTINCT FROM TRUE;
+  </select>
+
+  <select id="selectCompletedTravelPlansByUserId" parameterType="long" resultType="Plan">
+    SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+    FROM plans
+    WHERE user_id = #{userId} AND is_ended = true
+    ORDER BY created_at DESC
+  </select>
+
+  <select id="selectAllTravelPlans" resultType="Plan">
+    SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+    FROM plans
+    ORDER BY created_at DESC
+  </select>
+
+<!-- 플랜 저장 -->
+  <insert id="insertPlan" parameterType="Plan" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO plans (user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title)
+    VALUES (#{userId}, #{budget}, #{startDate}, #{endDate}, now(), now(), #{isEnded}, #{title})
+  </insert>
+
+
+  <update id="updatePlan" parameterType="Plan">
+    UPDATE plans
+    SET user_id = #{userId},
+        budget = #{budget},
+        start_date = #{startDate},
+        end_date = #{endDate},
+        updated_at = now(),
+        is_ended = #{isEnded},
+        title = #{title}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlanTitleById" parameterType="Plan">
+    UPDATE plans
+    SET title = #{title}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlanDates">
+    UPDATE plans
+    SET start_date = #{startDate},
+        end_date = #{endDate},
+        updated_at = now()
+    WHERE id = #{planId}
+  </update>
+
+  <delete id="deletePlan" parameterType="long">
+    DELETE FROM plans
+    WHERE id = #{id}
+  </delete>
+
+  <!-- 활성 Plan (isEnded=false) 개수 조회 -->
+  <select id="countActivePlans" resultType="long">
+    SELECT COUNT(*) 
+    FROM plans
+    WHERE is_ended = false
+  </select>
+
+  <select id="selectEndedPlansWithNoTitle" resultType="Plan">
+        SELECT id, user_id, budget, start_date, end_date, created_at, updated_at, is_ended, title
+        FROM plans
+        WHERE is_ended = true 
+          AND (title IS NULL OR title = '')
+        ORDER BY created_at DESC
+    </select>
+</mapper>

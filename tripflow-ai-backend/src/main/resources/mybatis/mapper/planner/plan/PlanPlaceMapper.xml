@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripflow.ai.planner.plan.dao.PlanPlaceDao">
+
+  <select id="selectPlanPlaceById" parameterType="long" resultType="PlanPlace">
+    SELECT id, day_id, title, start_at, end_at, place_name, address, lat, lng, expected_cost, normalized_category, first_image, first_image2, is_Ended
+    FROM plan_places
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectPlanPlacesByPlanDayId" parameterType="long" resultType="PlanPlace">
+    SELECT id, day_id, title, start_at, end_at, place_name, address, lat, lng, expected_cost, normalized_category, first_image, first_image2, is_Ended
+    FROM plan_places
+    WHERE day_id = #{dayId}
+    ORDER BY id ASC
+  </select>
+
+  <select id="selectPlanPlacesByPlanId" parameterType="long" resultType="PlanPlace">
+    SELECT tplace.id, tplace.day_id, tplace.title, tplace.start_at, tplace.end_at, tplace.place_name, tplace.address, tplace.lat, tplace.lng, tplace.expected_cost, tplace.normalized_category, tplace.first_image, tplace.first_image2, tplace.is_Ended
+    FROM plan_places tplace
+    INNER JOIN plan_days td ON tplace.day_id = td.id
+    WHERE td.plan_id = #{planId}
+    ORDER BY td.day_index ASC, tplace.start_at ASC
+  </select>
+
+  <insert id="insertPlanPlace" parameterType="PlanPlace" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO plan_places (day_id,  title, start_at, end_at, place_name, address, lat, lng, expected_cost, normalized_category, first_image, first_image2, is_Ended)
+    VALUES (#{dayId}, #{title}, #{startAt}, #{endAt}, #{placeName}, #{address}, #{lat}, #{lng}, #{expectedCost}, #{normalizedCategory}, #{firstImage}, #{firstImage2}, #{isEnded})
+  </insert>
+
+  <insert id="insertPlanPlaceBatch">
+    INSERT INTO plan_places (
+        day_id,
+        title,
+        start_at,
+        end_at,
+        place_name,
+        address,
+        lat,
+        lng,
+        expected_cost,
+        normalized_category,
+        first_image,
+        first_image2,
+        is_Ended
+    )
+    VALUES
+    <foreach collection="list" item="place" separator=",">
+        (
+            #{place.dayId},
+            #{place.title},
+            #{place.startAt},
+            #{place.endAt},
+            #{place.placeName},
+            #{place.address},
+            #{place.lat},
+            #{place.lng},
+            #{place.expectedCost},
+            #{place.normalizedCategory},
+            #{place.firstImage},
+            #{place.firstImage2},
+            #{place.isEnded}
+        )
+    </foreach>
+  </insert>
+  
+
+  <update id="updatePlanPlace" parameterType="PlanPlace">
+    UPDATE plan_places
+    SET day_id = #{dayId},
+        title = #{title},
+        start_at = #{startAt},
+        end_at = #{endAt},
+        place_name = #{placeName},
+        address = #{address},
+        lat = #{lat},
+        lng = #{lng},
+        expected_cost = #{expectedCost},
+        normalized_category = #{normalizedCategory},
+        is_ended = #{isEnded}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deletePlanPlaceByDayId" parameterType="long">
+    DELETE FROM plan_places
+    WHERE day_id = #{dayId}
+  </delete>
+
+  <!-- EDIT/DELETE Operations -->
+
+  <update id="updatePlanDayId">
+    UPDATE plan_places
+    SET day_id = #{planDayId}
+    WHERE id = #{id}
+  </update>
+
+
+  <update id="updatePlaceInfo">
+    UPDATE plan_places
+    SET
+        place_name = #{placeName},
+        title = #{placeName},
+        address = #{address},
+        lat = #{latitude},
+        lng = #{longitude},
+        expected_cost = #{cost}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlaceTime">
+    UPDATE plan_places
+    SET start_at = #{time}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlaceDuration">
+    UPDATE plan_places
+    SET end_at = start_at + (#{duration} || ' minutes')::interval
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlaceTimeRange">
+    UPDATE plan_places
+    SET start_at = #{startAt}, end_at = #{endAt}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlaceAllFields">
+    UPDATE plan_places
+    SET
+        day_id = #{dayId},
+        title = #{title},
+        start_at = #{startAt},
+        end_at = #{endAt},
+        place_name = #{placeName},
+        address = #{address},
+        lat = #{lat},
+        lng = #{lng},
+        expected_cost = #{expectedCost}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deletePlanPlaceById" parameterType="long">
+    DELETE FROM plan_places
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripflow.ai.planner.plan.dao.PlanDayDao">
+
+  <select id="selectPlanDayById" parameterType="long" resultType="PlanDay">
+    SELECT id, plan_id, day_index, title, plan_date
+    FROM plan_days
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectPlanDayIdsByPlanId" parameterType="Long" resultType="Long">
+    SELECT id
+    FROM plan_days
+    WHERE plan_id = #{id}
+  </select>
+
+  <select id="selectPlanDaysByPlanId" parameterType="long" resultType="PlanDay">
+    SELECT id, plan_id, day_index, title, plan_date
+    FROM plan_days
+    WHERE plan_id = #{planId}
+    ORDER BY day_index ASC
+  </select>
+
+  <insert id="insertPlanDay" parameterType="PlanDay" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO plan_days (plan_id, day_index, title, plan_date)
+    VALUES (#{planId}, #{dayIndex}, #{title}, #{planDate})
+  </insert>
+
+  <insert id="insertPlanDayBatch">
+  INSERT INTO plan_days (plan_id, day_index, plan_date)
+  VALUES
+  <foreach collection="list" item="days" separator=",">
+    (#{days.planId}, #{days.dayIndex}, #{days.planDate})
+  </foreach>
+  </insert>
+
+  <update id="updatePlanDay" parameterType="PlanDay">
+    UPDATE plan_days
+    SET plan_id = #{planId},
+        day_index = #{dayIndex},
+        title = #{title},
+        plan_date = #{planDate}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deletePlanDay" parameterType="long">
+    DELETE FROM plan_days
+    WHERE id = #{id}
+  </delete>
+
+  <delete id="deletePlanDaysByPlanId" parameterType="long">
+    DELETE FROM plan_days
+    WHERE plan_id = #{planId}
+  </delete>
+
+  <select id="selectPlanDayByPlanIdAndDayIndex" resultType="PlanDay">
+    SELECT id, plan_id, day_index, title, plan_date
+    FROM plan_days
+    WHERE plan_id = #{planId} AND day_index = #{dayIndex}
+  </select>
+
+  <select id="selectMaxDayIndexByPlanId" parameterType="long" resultType="Integer">
+    SELECT MAX(day_index)
+    FROM plan_days
+    WHERE plan_id = #{planId}
+  </select>
+
+  <update id="updateDayIndex">
+    UPDATE plan_days
+    SET day_index = #{dayIndex}
+    WHERE id = #{id}
+  </update>
+
+  <update id="updatePlanDate">
+    UPDATE plan_days
+    SET plan_date = #{planDate}
+    WHERE id = #{id}
+  </update>
+
+  <delete id="deletePlanDayById" parameterType="long">
+    DELETE FROM plan_days
+    WHERE id = #{id}
+  </delete>
+
+</mapper>

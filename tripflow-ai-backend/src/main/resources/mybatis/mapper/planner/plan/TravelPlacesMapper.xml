@@ -1,0 +1,209 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripflow.ai.planner.plan.dao.PlanDao">
+
+  <resultMap id="TravelPlacesResultMap" type="com.tripflow.ai.planner.plan.dto.entity.TravelPlaces">
+      <id column="id" property="id"/>
+      <result column="content_id" property="contentId"/>
+      <result column="title" property="title"/>
+      <result column="address" property="address"/>
+      <result column="tel" property="tel"/>
+      <result column="first_image" property="firstImage"/>
+      <result column="first_image2" property="firstImage2"/>
+      <result column="lat" property="lat"/>
+      <result column="lng" property="lng"/>
+      <result column="category_code" property="categoryCode"/>
+      <result column="description" property="description"/>
+      <result column="tags" property="tags" typeHandler="com.tripflow.ai.common.global.typehandler.JsonListTypeHandler"/>
+      <result column="detail_info" property="detailInfo"/>
+      <result column="normalized_category" property="normalizedCategory"/>
+      <result column="zone_id" property="zoneId"/>
+  </resultMap>
+
+
+  <resultMap id="TravelPlacesMap" type="com.tripflow.ai.planner.plan.dto.entity.TravelPlaces">
+      <id column="id" property="id"/>
+      <result column="content_id" property="contentId"/>
+      <result column="title" property="title"/>
+      <result column="address" property="address"/>
+      <result column="tel" property="tel"/>
+      <result column="first_image" property="firstImage"/>
+      <result column="first_image2" property="firstImage2"/>
+      <result column="lat" property="lat"/>
+      <result column="lng" property="lng"/>
+      <result column="category_code" property="categoryCode"/>
+      <result column="description" property="description"/>
+      <result column="tags" property="tags" typeHandler="com.tripflow.ai.common.global.typehandler.JsonListTypeHandler"/>
+      <result column="detail_info" property="detailInfo"/>
+      <result column="normalized_category" property="normalizedCategory"/>
+      <result column="zone_id" property="zoneId"/>
+  </resultMap>
+
+  <!-- 기본 컬럼 매핑 -->
+  <resultMap id="TravelPlaceSearchResultMap" type="com.tripflow.ai.planner.plan.dto.TravelPlaceCandidate">
+
+    <!-- score 직접 매핑 -->
+    <result column="score" property="score"/>
+
+    <!-- TravelPlaces 내부 매핑 -->
+    <association property="travelPlaces" javaType="com.tripflow.ai.planner.plan.dto.entity.TravelPlaces">
+        <id column="id" property="id" />
+        <result column="content_id" property="contentId" />
+        <result column="title" property="title" />
+        <result column="address" property="address" />
+        <result column="tel" property="tel" />
+        <result column="first_image" property="firstImage" />
+        <result column="first_image2" property="firstImage2" />
+        <result column="lat" property="lat" />
+        <result column="lng" property="lng" />
+        <result column="category_code" property="categoryCode" />
+        <result column="description" property="description" />
+        <result column="tags" property="tags" typeHandler="com.tripflow.ai.common.global.typehandler.JsonListTypeHandler" />
+        <!-- embedding은 생략 -->
+        <result column="created_at" property="createdAt"/>
+        <result column="updated_at" property="updatedAt"/>
+        <result column="detail_info" property="detailInfo"/>
+        <result column="normalized_category" property="normalizedCategory"/>
+        <result column="zone_id" property="zoneId"/>
+    </association>
+</resultMap>
+
+  <!-- id로 조회 -->
+  <select id="findByPlaceId" resultMap="TravelPlacesMap">
+        SELECT *
+        FROM travel_places
+        WHERE id = #{id}
+  </select>
+
+  <!-- 전체 조회 -->
+  <select id="findAll" resultMap="TravelPlacesMap">
+        SELECT *
+        FROM travel_places
+        ORDER BY id
+        LIMIT #{limit} OFFSET #{offset}
+  </select>
+
+  
+
+  <!-- 백터 검색 -->
+  <select id="searchByVector" resultMap="TravelPlaceSearchResultMap">
+      <![CDATA[ 
+      SELECT id, content_id, title, address, tel, first_image, first_image2, lat, lng, description, detail_info, normalized_category, zone_id,
+      1 - (embedding <=> #{embedding, typeHandler=com.tripflow.ai.common.global.typehandler.VectorTypeHandler}) AS score
+        FROM travel_places
+        WHERE embedding IS NOT NULL
+        ORDER BY score DESC
+        LIMIT #{limit}
+      ]]>
+  </select>
+
+  <!-- <select id="searchByVectorExcluding" resultMap="TravelPlacesMap">
+  <![CDATA[ 
+  SELECT id, content_id, title, address, tel, first_image, first_image2, 
+         lat, lng, description, detail_info, normalized_category, zone_id
+  FROM travel_places
+  WHERE embedding IS NOT NULL
+  ]]>
+  <if test="excludeIds != null and excludeIds.size() > 0">
+    AND id NOT IN
+    <foreach collection="excludeIds" item="id" open="(" separator="," close=")">
+      #{id}
+    </foreach>
+  </if>
+  <![CDATA[
+  ORDER BY score DESC
+  LIMIT #{limit}
+  ]]>
+</select> -->
+
+<select id="findByTitleContaining" resultMap="TravelPlacesMap">
+  SELECT id, content_id, title, address, tel, first_image, first_image2, 
+         lat, lng, description, detail_info, normalized_category, zone_id
+  FROM travel_places
+  WHERE title ILIKE '%' || #{title} || '%'
+  LIMIT 10
+</select>
+  
+  <select id="searchMissingCategoryByVector" parameterType="map" resultMap="TravelPlaceSearchResultMap">
+    <![CDATA[ 
+    SELECT id, content_id, title, address, tel, first_image, first_image2, lat, lng, description, detail_info, normalized_category,
+    1 - (embedding <=> #{embedding, typeHandler=com.tripflow.ai.common.global.typehandler.VectorTypeHandler}) AS score
+    FROM travel_places
+    WHERE normalized_category = #{category}
+    ]]>
+    <if test="excludedIds != null and excludedIds.size() > 0">
+    AND id NOT IN 
+    <foreach item="id" collection="excludedIds" open="(" separator="," close=")">
+        #{id}
+    </foreach>
+    </if>
+    ORDER BY score DESC
+    LIMIT #{limit}
+</select>
+
+<select id="vectorSearch" resultMap="TravelPlacesResultMap">
+        SELECT 
+            id,
+            content_id,
+            title,
+            address,
+            tel,
+            first_image,
+            first_image2,
+            lat,
+            lng,
+            category_code,
+            description,
+            tags,
+            created_at,
+            updated_at,
+            detail_info,
+            normalized_category,
+            zone_id
+        FROM travel_places
+        WHERE embedding IS NOT NULL
+        
+        <!-- ⭐ 복수 지역 OR 조건 -->
+        <if test="zoneIds != null and !zoneIds.isEmpty()">
+            AND zone_id IN
+            <foreach collection="zoneIds" item="zoneId" open="(" separator="," close=")">
+                #{zoneId}
+            </foreach>
+        </if>
+        
+        <!-- 벡터 유사도 검색 -->
+        ORDER BY embedding &lt;=&gt; #{embedding, typeHandler=com.tripflow.ai.common.global.typehandler.VectorTypeHandler}::vector
+        
+        LIMIT #{limit}
+    </select>
+
+
+    <!-- 1. 여행지 추가/ 정확 일치 -->
+    <select id="findExactByTitle" resultMap="TravelPlacesResultMap">
+        SELECT *
+        FROM travel_places
+        WHERE title = #{placeName}
+        LIMIT 1
+    </select>
+
+    <!-- 2. 여행지 추가/ 공백 제거 LIKE -->
+    <select id="findByTitleLikeNormalized" resultMap="TravelPlacesResultMap">
+        SELECT *
+        FROM travel_places
+        WHERE replace(title, ' ', '') ILIKE
+              CONCAT('%', replace(#{placeName}, ' ', ''), '%')
+        ORDER BY length(title)
+        LIMIT 5
+    </select>
+
+    <!-- 3. 여행지 추가/ 일반 LIKE (백업) -->
+    <select id="findByTitleLike" resultMap="TravelPlacesResultMap">
+        SELECT *
+        FROM travel_places
+        WHERE title ILIKE CONCAT('%', #{placeName}, '%')
+        LIMIT 5
+    </select>
+  
+</mapper>

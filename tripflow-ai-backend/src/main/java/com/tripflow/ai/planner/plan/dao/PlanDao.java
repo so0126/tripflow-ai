@@ -1,0 +1,92 @@
+package com.tripflow.ai.planner.plan.dao;
+
+import java.util.List;
+import java.util.Map;
+
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+
+import com.tripflow.ai.planner.plan.dto.TravelPlaceCandidate;
+import com.tripflow.ai.planner.plan.dto.entity.Plan;
+import com.tripflow.ai.planner.plan.dto.entity.PlanScheduleRow;
+import com.tripflow.ai.planner.plan.dto.entity.TravelPlaces;
+import com.tripflow.ai.planner.plan.dto.response.ActivePlanInfoResponse;
+
+@Mapper
+public interface PlanDao {
+
+    List<PlanScheduleRow> selectPlanWithAllByPlanId(Long planId);
+    List<PlanScheduleRow> selectPlanWithAllByUserId(Long userId);
+
+
+    /**
+     * ID로 여행 계획을 조회합니다.
+     */
+
+    Plan selectPlanById(Long id);
+
+    /**
+     * 사용자의 모든 여행 계획을 조회합니다.
+     */
+    List<Plan> selectPlansByUserId(Long userId);
+
+    /**
+     * 사용자의 활성화된 여행 계획을 조회합니다.
+     */
+    Plan selectActiveTravelPlanByUserId(Long userId);
+
+    /**
+     * 여행 계획을 생성합니다.
+     */
+    int insertPlan(Plan Plan);
+
+    /**
+     * 여행 계획을 수정합니다.
+     */
+    int updatePlan(Plan Plan);
+
+    void updatePlanTitleById(@Param("id") Long id, @Param("title") String title);
+
+    /**
+     * 여행 기간 변경 (startDate, endDate 업데이트)
+     */
+    void updatePlanDates(@Param("planId") Long planId,
+                         @Param("startDate") java.time.LocalDate startDate,
+                         @Param("endDate") java.time.LocalDate endDate);
+
+    /**
+     * 여행 계획을 삭제합니다.
+     */
+    int deletePlan(Long id);
+
+
+    /* 여행 계획 관련 메서드*/
+    TravelPlaces findById(@Param("id") Long id);
+    List<TravelPlaces> findAll(@Param("limit") int limit, @Param("offset") int offset);
+    List<TravelPlaceCandidate> searchByVector(@Param("embedding") float[] embedding, @Param("limit") int limit);
+    List<TravelPlaces> findByTitleContaining(@Param("title") String title);
+    List<TravelPlaceCandidate> searchMissingCategoryByVector(Map<String, Object> params);
+    List<String> getUserLastVisitedPlaces(@Param("userId") Long userId);
+
+    /**
+     * 활성 Plan (isEnded=false) 개수 조회
+     */
+    long countActivePlans();
+
+    /*is_ended=true && title = null일시 제목 자동생성위해 조회 */
+    List<Plan> selectEndedPlansWithNoTitle();
+
+    /* 활성화 된 planId 및 해당 날짜의 dayIndex조회 */
+    ActivePlanInfoResponse selectPlanIdAndCurrentDayIndex(Long userId);
+
+    /* 변경한 vector */
+    List<TravelPlaces> vectorSearch(@Param("embedding") float[] embedding, @Param("zoneIds") List<String> zoneIds, @Param("limit") int limit);
+
+    /* 여행지 정보 조회 */
+    TravelPlaces findByPlaceId(Long placeId);
+
+    /* 여행지 추가 필터 */
+    TravelPlaces findExactByTitle(@Param("placeName") String placeName);
+    List<TravelPlaces> findByTitleLikeNormalized(@Param("placeName") String placeName);
+    List<TravelPlaces> findByTitleLike(@Param("placeName") String placeName);
+}
