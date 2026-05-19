@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+
+<mapper namespace="com.tripflow.ai.supporter.imageSearch.dao.ImageSearchCandidateDao">
+
+  <resultMap id="ImageSearchCandidateResultMap" type="ImageSearchCandidate">
+      <id property="id" column="id"/>
+      <result property="imageSearchSessionId" column="image_search_session_id"/>
+      <result property="imagePlaceId" column="image_place_id"/>
+      <result property="isSelected" column="is_selected"/>
+      <result property="rank" column="rank"/>
+  </resultMap>
+
+    <!-- INSERT -->
+    <insert id="insert" parameterType="com.tripflow.ai.supporter.imageSearch.dto.response.ImageSearchCandidateResponse">
+        INSERT INTO image_search_candidates (image_search_session_id, image_place_id, is_selected, rank)
+        VALUES (#{imageSearchSessionId}, #{imagePlaceId}, #{isSelected}, #{rank})
+    </insert>
+
+    <!-- SELECT BY ID -->
+    <select id="selectById" resultMap="ImageSearchCandidateResultMap">
+        SELECT *
+        FROM image_search_candidates
+        WHERE id = #{id}
+    </select>
+
+    <!-- SELECT BY SESSION ID -->
+    <select id="selectBySessionId" resultMap="ImageSearchCandidateResultMap">
+        SELECT *
+        FROM image_search_candidates
+        WHERE image_search_session_id = #{sessionId}
+        ORDER BY rank ASC
+    </select>
+
+    <!-- SELECT WITH PLACE BY SESSION ID -->
+    <select id="selectWithPlaceBySessionId" resultType="com.tripflow.ai.supporter.imageSearch.dto.response.CandidateWithPlaceResponse">
+        SELECT 
+            c.id as candidateId,
+            c.is_selected as isSelected,
+            c.rank as rank,
+            p.id as "place.id",
+            p.name as "place.name",
+            p.address as "place.address",
+            p.lat as "place.lat",
+            p.lng as "place.lng",
+            p.place_type as "place.placeType",
+            p.content as "place.description",
+            p.internal_original_url as "place.internalOriginalUrl",
+            p.internal_thumbnail_url as "place.internalThumbnailUrl",
+            p.external_image_url as "place.externalImageUrl",
+            p.image_status as "place.imageStatus"
+        FROM image_search_candidates c
+        JOIN image_places p ON c.image_place_id = p.id
+        WHERE c.image_search_session_id = #{sessionId}
+        ORDER BY c.rank ASC
+    </select>
+
+    <!-- SELECT ALL BY image_search_place_id -->
+    <select id="findByImageSearchPlaceId" resultMap="ImageSearchCandidateResultMap">
+        SELECT *
+        FROM image_search_candidates
+        WHERE image_search_session_id = #{imageSearchSessionId}
+        ORDER BY rank ASC
+    </select>
+
+    <!-- UPDATE -->
+    <update id="update"
+            parameterType="ImageSearchCandidate">
+        UPDATE image_search_candidates
+        SET
+            image_search_session_id = #{imageSearchSessionId},
+            image_place_id = #{imagePlaceId},
+            is_selected = #{isSelected},
+            rank = #{rank}
+        WHERE id = #{id}
+    </update>
+
+    <!-- DELETE -->
+    <delete id="delete" parameterType="long">
+        DELETE FROM image_search_candidates
+        WHERE id = #{id}
+    </delete>
+
+    <!-- DELETE BY SESSION ID -->
+    <delete id="deleteBySessionId" parameterType="long">
+        DELETE FROM image_search_candidates
+        WHERE image_search_session_id = #{sessionId}
+    </delete>
+
+</mapper>
