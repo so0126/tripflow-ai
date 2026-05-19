@@ -15,9 +15,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import com.tripflow.ai.planner.hotel.dto.entity.HotelBookingSummary.HotelBookingSummaryResponse;
 import com.tripflow.ai.planner.hotel.dto.request.HotelBookingRequest;
 import com.tripflow.ai.planner.hotel.dto.response.HotelBookingResponse;
 import com.tripflow.ai.planner.hotel.service.HotelBookingService;
+import com.tripflow.ai.planner.hotel.service.HotelBookingSummaryService;
 
 @RestController
 @RequestMapping("/api/hotel-bookings")
@@ -25,6 +27,9 @@ public class HotelBookingController {
     
     @Autowired
     private HotelBookingService hotelBookingService;
+
+    @Autowired
+    private HotelBookingSummaryService hotelBookingSummaryService;
     
     @PostMapping
     public ResponseEntity<Map<String, Object>> createHotelBooking(@RequestBody HotelBookingRequest request) {
@@ -65,6 +70,21 @@ public class HotelBookingController {
         return ResponseEntity.ok(response);
     }
     
+    @GetMapping("/user/{userId}/summary")
+    public ResponseEntity<Map<String, Object>> getHotelBookingSummary(@PathVariable("userId") Long userId) {
+        Map<String, Object> response = new HashMap<>();
+        try {
+            HotelBookingSummaryResponse summary = hotelBookingSummaryService.getBookingSummaryByUserId(userId);
+            response.put("success", true);
+            response.put("data", summary);
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            response.put("success", false);
+            response.put("message", e.getMessage());
+            return ResponseEntity.ok(response);
+        }
+    }
+
     @DeleteMapping("/{id}")
     public ResponseEntity<Map<String, Object>> deleteHotelBooking(@PathVariable("id") Long id) {
         hotelBookingService.deleteHotelBooking(id);
