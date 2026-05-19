@@ -203,8 +203,3 @@ wip(back): save current place data changes
 
 ---
 
-## 10. Notes
-
-- API Key, DB 비밀번호, OAuth Secret 등 민감 정보는 Git에 커밋하지 않습니다.
-- Naver API 응답 데이터를 그대로 덤프한 SQL 파일은 저장소에 포함하지 않고, 수집 로직과 실행 방법을 문서화합니다.
-- seed SQL은 로컬 실행과 기능 검증을 위한 최소 샘플 데이터 중심으로 관리합니다.
