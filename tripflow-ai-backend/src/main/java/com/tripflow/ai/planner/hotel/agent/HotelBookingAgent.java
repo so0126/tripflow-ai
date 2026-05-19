@@ -264,12 +264,17 @@ public class HotelBookingAgent {
             booking.setBookedAt(checkin);
 
             // 호텔 정보 추가
-            String hotelDetail = "호텔: " + candidate.getHotelName() +
-                    " | 객실: " + candidate.getRoomTypeName() +
-                    " | 침대: " + candidate.getBedType() +
-                    " | 요금제: " + candidate.getRatePlanName() +
-                    (candidate.getIncludesBreakfast() != null && candidate.getIncludesBreakfast() ? " | 조식: 포함" : "");
-            booking.setProviderBookingMeta(hotelDetail);
+            try {
+                java.util.Map<String, Object> meta = new java.util.LinkedHashMap<>();
+                meta.put("hotelName", candidate.getHotelName());
+                meta.put("roomTypeName", candidate.getRoomTypeName());
+                meta.put("bedType", candidate.getBedType());
+                meta.put("ratePlanName", candidate.getRatePlanName());
+                meta.put("includesBreakfast", candidate.getIncludesBreakfast() != null && candidate.getIncludesBreakfast());
+                booking.setProviderBookingMeta(objectMapper.writeValueAsString(meta));
+            } catch (Exception e) {
+                booking.setProviderBookingMeta("{}");
+            }
             booking.setHotelName(candidate.getHotelName());
             booking.setNeighborhood(candidate.getNeighborhood());
             booking.setRoomTypeName(candidate.getRoomTypeName());
