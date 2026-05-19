@@ -235,7 +235,7 @@ onMounted(async () => {
 
       if (response?.data?.data?.hotelSummaryList?.length > 0) {
         console.log('4️⃣ 호텔 데이터 있음');
-        hotels.value = response.data.data.hotelSummaryList.map((hotel) => ({
+        hotels.value = response.data.data.hotelSummaryList.map((hotel, index) => ({
           id: hotel.hotelId || hotel.hotelName,
           name: hotel.hotelName,
           location: hotel.neighborhood,
@@ -247,7 +247,7 @@ onMounted(async () => {
           type: 'hotel',
           checkInDate: hotel.checkInDate,
           checkOutDate: hotel.checkOutDate,
-          nights: Number(String(hotel.nights).replace(/[^0-9]/g, '')) || 1,  // ✅ 숫자만 추출
+          nights: Number(String(hotel.nights).replace(/[^0-9]/g, '')) || 1,
           roomType: hotel.roomTypeName,
           guests: hotel.guests,
           rank: hotel.rank,
@@ -255,7 +255,8 @@ onMounted(async () => {
           freeWifi: hotel.facilities?.['WiFi'] === '있음',
           breakfast: true,
           pool: false,
-          spa: false
+          spa: false,
+          bookingData: response.data.data.bookingDataList?.[index] ?? null
         }));
       } else {
         console.log('5️⃣ 기본값 로드');
@@ -298,10 +299,12 @@ const confirmSelection = () => {
   if (selectedHotel.value) {
     travelStore.increaseStep();
 
+    const { bookingData, ...hotelDisplay } = selectedHotel.value;
     router.push({
       name: 'payment',
       query: {
-        hotel: JSON.stringify(selectedHotel.value)  // ✅ query 사용
+        hotel: JSON.stringify(hotelDisplay),
+        bookingData: JSON.stringify(bookingData)
       }
     });
   }

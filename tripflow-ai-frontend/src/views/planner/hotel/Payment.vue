@@ -300,8 +300,6 @@ const validateCardDetails = () => {
 
 // ✅ 결제 프로세스 시작
 const processPayment = async () => {
-  console.log('💳 결제 프로세스 시작');
-
   if (!agreeToTerms.value) {
     alert('예약 조건에 동의해주세요.');
     return;
@@ -312,44 +310,34 @@ const processPayment = async () => {
     return;
   }
 
+  if (!route.query.bookingData) {
+    alert('예약 정보를 찾을 수 없습니다. 다시 호텔을 선택해주세요.');
+    router.push({ name: 'hotel' });
+    return;
+  }
+
   isProcessing.value = true;
-  console.log('⏳ 결제 처리 중...');
 
   try {
     const userId = authStore.userId;
-    console.log('👤 userId:', userId);
+    const bookingData = JSON.parse(route.query.bookingData);
 
-    // ✅ 호텔 예약 데이터 준비 (createdAt 제거)
-    const bookingData = {
-      userId: userId,
-      hotelName: selectedHotel.value.name,
-      roomType: selectedHotel.value.roomType,
-      checkinDate: formatDateToYYYYMMDD(selectedHotel.value.checkInDate),
-      checkoutDate: formatDateToYYYYMMDD(selectedHotel.value.checkOutDate)
-    };
+    bookingData.userId = userId;
+    bookingData.status = 'CONFIRMED';
+    bookingData.paymentStatus = 'PAID';
+    bookingData.bookedAt = new Date().toISOString();
 
-    console.log('========== API 요청 데이터 ==========');
-    console.log('📤 예약 데이터:', bookingData);
-    console.log('JSON 형식:', JSON.stringify(bookingData, null, 2));
-    console.log('=====================================');
-
-    // ✅ API 호출 - 호텔 예약 저장
-    console.log('🔄 API 호출 시작...');
-    const response = await hotelApi.createHotelBooking(userId, bookingData);
-    console.log('✅ API 응답 성공:', response);
-    console.log('응답 데이터:', response.data);
+    const response = await hotelApi.createHotelBooking(bookingData);
+    console.log('✅ 예약 완료:', response.data);
 
     isProcessing.value = false;
     travelStore.increaseStep();
-    
+
     alert('예약이 완료되었습니다!');
     router.push({ name: 'bookingComplete' });
 
   } catch (error) {
-    console.error('❌ API 호출 실패');
-    console.error('에러 메시지:', error.message);
-    console.error('응답 데이터:', error.response?.data);
-    
+    console.error('❌ 예약 실패:', error.response?.data ?? error.message);
     isProcessing.value = false;
     alert('예약 처리 중 오류가 발생했습니다.');
   }
