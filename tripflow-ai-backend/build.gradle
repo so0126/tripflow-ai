@@ -1,0 +1,110 @@
+plugins {
+	id 'java'
+	id 'org.springframework.boot' version '3.4.11'
+	id 'io.spring.dependency-management' version '1.1.7'
+}
+
+group = 'com.example'
+version = '0.0.1-SNAPSHOT'
+description = 'Demo project for Spring Boot'
+
+java {
+	toolchain {
+		languageVersion = JavaLanguageVersion.of(21)
+	}
+}
+
+configurations {
+	compileOnly {
+		extendsFrom annotationProcessor
+	}
+}
+
+repositories {
+	mavenCentral()
+}
+
+ext {
+	set('springAiVersion', "1.0.3")
+}
+
+dependencies {
+	implementation 'org.springframework.boot:spring-boot-starter-web'
+	implementation 'org.springframework.boot:spring-boot-starter-webflux'
+	implementation 'org.springframework.ai:spring-ai-starter-model-openai'
+	implementation 'org.springframework.ai:spring-ai-advisors-vector-store'
+	implementation 'org.springframework.ai:spring-ai-starter-vector-store-pgvector'
+	implementation 'com.google.code.gson:gson:2.10.1'
+	compileOnly 'org.projectlombok:lombok'
+	developmentOnly 'org.springframework.boot:spring-boot-devtools'
+	annotationProcessor 'org.projectlombok:lombok'
+	testImplementation 'org.springframework.boot:spring-boot-starter-test'
+	testImplementation 'io.projectreactor:reactor-test'
+	testRuntimeOnly 'org.junit.platform:junit-platform-launcher'
+
+	// 리턴 객체를 -> XML로 변환시켜주는 라이브러리
+	implementation 'com.fasterxml.jackson.dataformat:jackson-dataformat-xml:2.19.2'
+
+	// MyBatis
+	implementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5'
+	testImplementation 'org.mybatis.spring.boot:mybatis-spring-boot-starter:3.0.5-test'
+	runtimeOnly 'org.postgresql:postgresql:42.7.3'
+
+	// JSON
+	implementation 'org.json:json:20250517'
+
+	// 암호화
+	implementation 'org.springframework.security:spring-security-crypto:6.3.8'
+
+	// AWS S3
+	implementation 'com.amazonaws:aws-java-sdk-s3:1.12.700'
+
+	// 썸네일 생성 라이브러리
+	implementation 'net.coobird:thumbnailator:0.4.20'
+
+	// Multipart 안정성 보강
+    implementation 'commons-fileupload:commons-fileupload:1.5'
+
+	// JdbcTemplate
+	implementation 'org.springframework.boot:spring-boot-starter-jdbc'
+
+	// KMeansCluster
+	implementation 'org.apache.commons:commons-math3:3.6.1'
+
+	// Validation
+	implementation 'org.springframework.boot:spring-boot-starter-validation'
+
+	// Spring Security & OAuth2
+    implementation 'org.springframework.boot:spring-boot-starter-security'
+    implementation 'org.springframework.security:spring-security-oauth2-client'
+	implementation 'org.springframework.security:spring-security-oauth2-jose'
+
+	// JWT (버전 다운그레이드)
+    implementation 'io.jsonwebtoken:jjwt-api:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-impl:0.11.5'
+    runtimeOnly 'io.jsonwebtoken:jjwt-jackson:0.11.5'
+
+	// Thymeleaf
+    implementation 'org.springframework.boot:spring-boot-starter-thymeleaf'
+}
+
+dependencyManagement {
+	imports {
+		mavenBom "org.springframework.ai:spring-ai-bom:${springAiVersion}"
+	}
+}
+
+tasks.withType(JavaCompile).configureEach {
+	options.encoding = 'UTF-8'
+}
+
+tasks.withType(JavaExec).configureEach {
+	jvmArgs '-Dfile.encoding=UTF-8', '-Dsun.stdout.encoding=UTF-8', '-Dsun.stderr.encoding=UTF-8'
+}
+
+tasks.named('test') {
+	useJUnitPlatform()
+	systemProperty 'file.encoding', 'UTF-8'
+	systemProperty 'sun.stdout.encoding', 'UTF-8'
+	systemProperty 'sun.stderr.encoding', 'UTF-8'
+}
