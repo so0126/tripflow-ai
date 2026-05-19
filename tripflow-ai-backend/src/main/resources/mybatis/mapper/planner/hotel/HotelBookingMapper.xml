@@ -17,7 +17,12 @@
            guest_name, guest_email, guest_phone, provider_booking_meta, booked_at, cancelled_at, created_at, updated_at)
     VALUES (#{userId}, #{externalBookingId}, #{hotelId}, #{roomTypeId}, #{ratePlanId}, #{checkinDate,jdbcType=TIMESTAMP_WITH_TIMEZONE}, #{checkoutDate,jdbcType=TIMESTAMP_WITH_TIMEZONE},
            #{nights}, #{adultsCount}, #{childrenCount}, #{currency}, #{totalPrice}, #{taxAmount}, #{feeAmount}, #{status}, #{paymentStatus},
-           #{guestName}, #{guestEmail}, #{guestPhone}, #{providerBookingMeta,jdbcType=OTHER}::jsonb, #{bookedAt,jdbcType=TIMESTAMP_WITH_TIMEZONE}, #{cancelledAt,jdbcType=TIMESTAMP_WITH_TIMEZONE}, now(), now())
+           #{guestName}, #{guestEmail}, #{guestPhone},
+           <choose>
+             <when test="providerBookingMeta != null">#{providerBookingMeta,jdbcType=OTHER}::jsonb</when>
+             <otherwise>NULL</otherwise>
+           </choose>,
+           #{bookedAt,jdbcType=TIMESTAMP_WITH_TIMEZONE}, #{cancelledAt,jdbcType=TIMESTAMP_WITH_TIMEZONE}, now(), now())
   </insert>
 
   <update id="updateHotelBooking" parameterType="com.tripflow.ai.planner.hotel.dto.request.HotelBookingRequest">

@@ -326,6 +326,7 @@ const processPayment = async () => {
     bookingData.status = 'CONFIRMED';
     bookingData.paymentStatus = 'PAID';
     bookingData.bookedAt = new Date().toISOString();
+    delete bookingData.providerBookingMeta;
 
     const response = await hotelApi.createHotelBooking(bookingData);
     console.log('✅ 예약 완료:', response.data);
