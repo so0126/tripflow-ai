@@ -1,0 +1,52 @@
+// src/assets/styles/_theme.scss
+
+// ==========================================
+// 🎨 Green Aurora Theme Variables
+// ==========================================
+
+// 1. 사용자 지정 색상 팔레트 (User Palette)
+$navy:#1B3B6F;
+$orange: #ffb347;
+$white:#ffffff;
+$skyblue: #5cc3ff;
+$mint:#00f7ff;
+$blue:#0084ff;
+$green-aurora:    #6ADC99; // 활력, 평온함
+$sky-coral:       #E9967A; // 따뜻함, 하이라이트
+$morning-yellow:  #FFF8E1; // 맑고 평화로운 배경
+$giwa-dark-gray:  #333333; // 가독성 텍스트
+
+// 2. 부트스트랩 색상 매핑 (Bootstrap Override)
+// 부트스트랩의 의미론적 변수($primary 등)에 위에서 만든 색을 할당합니다.
+
+// $primary:       $green-aurora;   // 주요 버튼, 활성 상태
+// $secondary:     $sky-coral;      // 보조 버튼, 알림
+$primary:       $orange; // 주요 버튼, 활성 상태
+$secondary:     $navy; // 보조 버튼, 알림
+$body-bg:       $white; // 전체 페이지 배경 (흰색)
+$body-color:    $giwa-dark-gray; // 기본 텍스트 색상
+
+// (선택) 상태별 색상 미세 조정
+$success:       #2ecc71; 
+$info:          #3498db;
+$warning:       #f1c40f;
+$danger:        #e74c3c;
+
+// // 3. 폰트 변수 재정의
+// // 부트스트랩이 기본적으로 사용하는 폰트 변수를 Pretendard로 교체합니다.
+// $font-family-sans-serif: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, Roboto, "Helvetica Neue", "Segoe UI", "Apple SD Gothic Neo", "Noto Sans KR", "Malgun Gothic", "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", sans-serif;
+// $font-size-base: 1rem; // 기본 16px
+// $line-height-base: 1.6; // 가독성을 위해 줄간격 확보
+
+// 4. 컴포넌트 전역 스타일 (Global Component Styles)
+// 모든 버튼과 카드에 공통으로 적용될 둥글기와 여백입니다.
+$border-radius:       0.75rem;  // 중간 둥글기
+$border-radius-lg:    1rem;     // 큰 둥글기 (카드 등)
+$border-radius-pill:  50rem;    // 알약 모양 버튼용
+
+$btn-font-weight:     600;      // 버튼 글씨 두께
+$card-border-radius:  $border-radius-lg;
+$card-border-color:   rgba($giwa-dark-gray, 0.05); // 카드 테두리 아주 연하게
+$card-bg:             #ffffff;  // 카드는 흰색 배경 유지 (노란 배경 위에서 돋보이게)
+
+@import "bootstrap/scss/bootstrap";

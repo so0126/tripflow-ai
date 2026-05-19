@@ -1,0 +1,68 @@
+// src/assets/styles/_typography.scss
+// ===============================
+// 🅰️ Standard Font System
+// ===============================
+
+// 표준 폰트 스택 정의
+$standard-font-stack: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans KR", sans-serif;
+
+body {
+  font-family: $standard-font-stack;
+  font-weight: 400;
+  
+  /* ✅ 글자 크기 키우기 (기본 16px -> 20px 정도로 변경) */
+  font-size: 1.5rem; 
+  // font-size: 25px;
+  /* 또는 px 단위가 편하시면: font-size: 20px; */
+
+  line-height: 1.6;
+  background-color: $body-bg;
+  color: $body-color;
+}
+
+h1, h2, h3, h4, h5, h6 {
+  font-family: $standard-font-stack;
+  font-weight: 700; // 제목은 두껍게
+  color: $secondary; // 제목 색상을 '스카이 코랄'로 할지, '다크 그레이'로 할지 결정
+  // color: $body-color; // 깔끔한게 좋다면 다크 그레이 추천
+  margin-bottom: 1rem;
+}
+
+.text-muted {
+  color: lighten($body-color, 30%) !important;
+}
+
+/* 본문 태그: 표준 폰트 */
+p {
+  font-family: $standard-font-stack;
+  font-size: 1.3rem; 
+  margin-bottom: 1rem;
+  word-break: keep-all; /* 한글 단어 끊김 방지 */
+}
+
+/* 링크 태그: Orange Color + 밑줄 효과 */
+a {
+  color: #ff8c00;
+  text-decoration: none;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  font-family: $standard-font-stack;
+
+
+  &:hover {
+    color: #e67e00;
+    text-decoration: underline;
+    text-underline-offset: 4px; /* 밑줄 간격 띄우기 */
+  }
+}
+
+/* 강조 텍스트 (Bootstrap .lead 등) */
+.lead {
+  font-size: 1.4rem;
+  font-weight: 500;
+}
+
+/* 작은 텍스트 */
+small, .small {
+  font-size: 1rem; /* 손글씨라 너무 작게 안 함 */
+}
