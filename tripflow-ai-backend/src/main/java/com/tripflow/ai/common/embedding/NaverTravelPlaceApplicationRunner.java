@@ -37,7 +37,7 @@ public class NaverTravelPlaceApplicationRunner implements ApplicationRunner {
     }
 
     private void closeIfNeeded() {
-        if (importProperties.getStartup().isExitOnComplete()) {
+        if (importProperties.startup().exitOnComplete()) {
             log.info("Naver travel place import requested application shutdown.");
             applicationContext.close();
         }

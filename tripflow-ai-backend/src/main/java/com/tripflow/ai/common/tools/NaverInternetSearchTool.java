@@ -42,8 +42,8 @@ public class NaverInternetSearchTool {
                     .queryParam("display", 1)
                     .queryParam("sort", "sim")
                     .build())
-                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
-                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
+                .header("X-Naver-Client-Id", naverApiProperties.clientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.clientSecret())
                 .retrieve()
                 .bodyToMono(NaverImageSearchResponse.class)
                 .block();
@@ -72,8 +72,8 @@ public class NaverInternetSearchTool {
                     .queryParam("query", query)
                     .queryParam("display", 5) // 최대 5개까지 가져오기
                     .build())
-                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
-                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
+                .header("X-Naver-Client-Id", naverApiProperties.clientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.clientSecret())
                 .retrieve()
                 .bodyToMono(NaverLocalSearchResponse.class)
                 .block();
@@ -105,8 +105,8 @@ public class NaverInternetSearchTool {
                     .queryParam("display", 5)
                     .queryParam("sort", "sim")
                     .build())
-                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
-                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
+                .header("X-Naver-Client-Id", naverApiProperties.clientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.clientSecret())
                 .retrieve()
                 .bodyToMono(BlogSearchResponse.class)
                 .block();

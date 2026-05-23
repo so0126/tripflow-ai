@@ -10,17 +10,16 @@ import java.util.Locale;
 import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Service;
-import org.springframework.web.reactive.function.client.WebClient;
-
 import com.tripflow.ai.common.chat.intent.dto.SeoulRegion;
 import com.tripflow.ai.common.naver.NaverApiProperties;
 import com.tripflow.ai.common.naver.dto.LocalItem;
 import com.tripflow.ai.common.naver.dto.NaverLocalSearchResponse;
 import com.tripflow.ai.planner.plan.util.CategoryNames;
+import org.springframework.ai.embedding.EmbeddingModel;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
+import org.springframework.jdbc.core.JdbcTemplate;
+import org.springframework.stereotype.Service;
+import org.springframework.web.reactive.function.client.WebClient;
 
 @Slf4j
 @Service
@@ -53,12 +52,13 @@ public class NaverTravelPlaceImportService {
     }
 
     public void importTravelPlaces() {
-        log.info("Naver travel place import started. targetCount={}", importProperties.getTargetCount());
+        int targetCount = importProperties.targetCount();
+        log.info("Naver travel place import started. targetCount={}", targetCount);
         ensureCategories();
 
         int currentCount = countTravelPlaces();
-        if (currentCount >= importProperties.getTargetCount()) {
-            log.info("Naver travel place import skipped. currentCount={}, targetCount={}", currentCount, importProperties.getTargetCount());
+        if (currentCount >= targetCount) {
+            log.info("Naver travel place import skipped. currentCount={}, targetCount={}", currentCount, targetCount);
             return;
         }
 
@@ -72,7 +72,7 @@ public class NaverTravelPlaceImportService {
         for (String query : buildSearchQueries()) {
             List<LocalItem> items = searchLocal(query);
             for (LocalItem item : items) {
-                if (localCount >= importProperties.getTargetCount()) {
+                if (localCount >= targetCount) {
                     break outer;
                 }
                 TravelPlaceCandidate candidate = toCandidate(item);
@@ -103,8 +103,8 @@ public class NaverTravelPlaceImportService {
                             .queryParam("display", NAVER_LOCAL_DISPLAY_LIMIT)
                             .queryParam("sort", "comment")
                             .build())
-                    .header("X-Naver-Client-Id", naverApiProperties.getClientId())
-                    .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
+                    .header("X-Naver-Client-Id", naverApiProperties.clientId())
+                    .header("X-Naver-Client-Secret", naverApiProperties.clientSecret())
                     .retrieve()
                     .bodyToMono(NaverLocalSearchResponse.class)
                     .block();
