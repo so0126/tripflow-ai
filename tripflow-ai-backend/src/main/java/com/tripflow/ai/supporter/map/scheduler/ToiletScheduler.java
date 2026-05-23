@@ -1,6 +1,7 @@
 package com.tripflow.ai.supporter.map.scheduler;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
@@ -10,6 +11,7 @@ import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
 @Component
+@ConditionalOnProperty(prefix = "app.toilet.scheduler", name = "enabled", havingValue = "true")
 public class ToiletScheduler {
 
 	@Autowired
