@@ -11,45 +11,36 @@ import java.util.Set;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.ai.embedding.EmbeddingModel;
-import org.springframework.beans.factory.annotation.Value;
-import org.springframework.boot.ApplicationArguments;
-import org.springframework.boot.ApplicationRunner;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
-import org.springframework.context.ConfigurableApplicationContext;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
 import com.tripflow.ai.common.chat.intent.dto.SeoulRegion;
+import com.tripflow.ai.common.naver.NaverApiProperties;
 import com.tripflow.ai.common.naver.dto.LocalItem;
 import com.tripflow.ai.common.naver.dto.NaverLocalSearchResponse;
 import com.tripflow.ai.planner.plan.util.CategoryNames;
 
 @Slf4j
-@Component
+@Service
 @ConditionalOnProperty(prefix = "app.travel-place.import.naver", name = "enabled", havingValue = "true")
-public class NaverTravelPlaceImportRunner implements ApplicationRunner {
+public class NaverTravelPlaceImportService {
 
-    private static final int NAVER_LOCAL_DISPLAY_LIMIT = 3;
+    private static final int NAVER_LOCAL_DISPLAY_LIMIT = 5;
 
     private final WebClient webClient;
     private final JdbcTemplate jdbcTemplate;
     private final EmbeddingModel embeddingModel;
-    private final String naverClientId;
-    private final String naverClientSecret;
-    private final int targetCount;
-    private final boolean exitOnComplete;
-    private final ConfigurableApplicationContext applicationContext;
+    private final NaverApiProperties naverApiProperties;
+    private final NaverImportProperties importProperties;
 
-    public NaverTravelPlaceImportRunner(
+    public NaverTravelPlaceImportService(
             WebClient.Builder webClientBuilder,
             JdbcTemplate jdbcTemplate,
             EmbeddingModel embeddingModel,
-            @Value("${naver.api.client-id}") String naverClientId,
-            @Value("${naver.api.client-secret}") String naverClientSecret,
-            @Value("${app.travel-place.import.naver.target-count:100}") int targetCount,
-            @Value("${app.travel-place.import.naver.exit-on-complete:false}") boolean exitOnComplete,
-            ConfigurableApplicationContext applicationContext
+            NaverApiProperties naverApiProperties,
+            NaverImportProperties importProperties
     ) {
         this.webClient = webClientBuilder
                 .baseUrl("https://openapi.naver.com")
@@ -57,60 +48,50 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
                 .build();
         this.jdbcTemplate = jdbcTemplate;
         this.embeddingModel = embeddingModel;
-        this.naverClientId = naverClientId;
-        this.naverClientSecret = naverClientSecret;
-        this.targetCount = targetCount;
-        this.exitOnComplete = exitOnComplete;
-        this.applicationContext = applicationContext;
+        this.naverApiProperties = naverApiProperties;
+        this.importProperties = importProperties;
     }
 
-    @Override
-    public void run(ApplicationArguments args) {
+    public void importTravelPlaces() {
+        log.info("Naver travel place import started. targetCount={}", importProperties.getTargetCount());
         ensureCategories();
 
         int currentCount = countTravelPlaces();
-        if (currentCount >= targetCount) {
-            log.info("Naver travel place import skipped. currentCount={}, targetCount={}", currentCount, targetCount);
-            closeIfNeeded();
+        if (currentCount >= importProperties.getTargetCount()) {
+            log.info("Naver travel place import skipped. currentCount={}, targetCount={}", currentCount, importProperties.getTargetCount());
             return;
         }
 
         Set<String> knownContentIds = new LinkedHashSet<>(jdbcTemplate.queryForList(
-                "SELECT content_id FROM travel_places",
-                String.class
-        ));
+                "SELECT content_id FROM travel_places", String.class));
 
         int inserted = 0;
-        for (String query : buildSearchQueries()) {
-            if (countTravelPlaces() >= targetCount) {
-                break;
-            }
+        int localCount = currentCount;
 
+        outer:
+        for (String query : buildSearchQueries()) {
             List<LocalItem> items = searchLocal(query);
             for (LocalItem item : items) {
-                if (countTravelPlaces() >= targetCount) {
-                    break;
+                if (localCount >= importProperties.getTargetCount()) {
+                    break outer;
                 }
-
                 TravelPlaceCandidate candidate = toCandidate(item);
                 if (candidate == null || knownContentIds.contains(candidate.contentId())) {
                     continue;
                 }
-
                 float[] embedding = embeddingModel.embed(candidate.toEmbeddingText());
                 upsertTravelPlace(candidate, embedding);
                 knownContentIds.add(candidate.contentId());
                 inserted++;
+                localCount++;
+            }
+
+            if (inserted % 50 == 0 && inserted > 0) {
+                log.info("Naver import progress. inserted={}, total={}", inserted, localCount);
             }
         }
 
-        log.info(
-                "Naver travel place import finished. inserted={}, totalCount={}, targetCount={}",
-                inserted,
-                countTravelPlaces(),
-                targetCount
-        );
-        closeIfNeeded();
+        log.info("Naver travel place import finished. inserted={}, totalCount={}", inserted, localCount);
     }
 
     private List<LocalItem> searchLocal(String query) {
@@ -122,8 +103,8 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
                             .queryParam("display", NAVER_LOCAL_DISPLAY_LIMIT)
                             .queryParam("sort", "comment")
                             .build())
-                    .header("X-Naver-Client-Id", naverClientId)
-                    .header("X-Naver-Client-Secret", naverClientSecret)
+                    .header("X-Naver-Client-Id", naverApiProperties.getClientId())
+                    .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
                     .retrieve()
                     .bodyToMono(NaverLocalSearchResponse.class)
                     .block();
@@ -133,15 +114,18 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
             }
             return response.getItems();
         } catch (Exception e) {
-            log.warn("Naver local search failed. query={}, message={}", query, e.getMessage());
+            log.warn("Naver local search failed. query={}, error={}", query, e.getMessage());
             return List.of();
         }
     }
 
     private TravelPlaceCandidate toCandidate(LocalItem item) {
         String title = clean(item.getTitle());
-        String address = firstNonBlank(clean(item.getRoadAddress()), clean(item.getAddress()));
+        String roadAddress = clean(item.getRoadAddress());
+        String jibunAddress = clean(item.getAddress());
+        String address = roadAddress.isBlank() ? jibunAddress : roadAddress;
         String categoryText = clean(item.getCategory());
+        String naverDescription = clean(item.getDescription());
 
         if (title.isBlank() || address.isBlank() || !address.contains("서울")) {
             return null;
@@ -155,24 +139,20 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
         String categoryCode = normalizeCategory(title, categoryText);
         Double lat = parseNaverCoordinate(item.getMapy());
         Double lng = parseNaverCoordinate(item.getMapx());
-        String description = "%s에 위치한 %s입니다. 네이버 지역 검색 카테고리는 %s입니다."
-                .formatted(address, title, categoryText.isBlank() ? "장소" : categoryText);
-        String detailInfo = "서울 %s 지역 일정 생성용 장소 데이터입니다.".formatted(zoneId);
+        String description = naverDescription.isBlank()
+                ? "%s에 위치한 %s입니다.".formatted(address, title)
+                : naverDescription;
+        String categoryLabel = toCategoryLabel(categoryCode);
+        String detailInfo = "%s 카테고리의 장소입니다. 네이버 분류: %s. 서울 %s 지역에 위치합니다."
+                .formatted(categoryLabel, categoryText.isBlank() ? categoryLabel : categoryText, zoneId);
         String tags = toTagsJson(categoryCode, zoneId, categoryText);
         String contentId = "naver-local-" + sha256(title + "|" + address);
+        String link = clean(item.getLink());
 
         return new TravelPlaceCandidate(
-                contentId,
-                title,
-                address,
-                clean(item.getLink()),
-                zoneId,
-                lat,
-                lng,
-                categoryCode,
-                description,
-                detailInfo,
-                tags
+                contentId, title, address, link, zoneId,
+                lat, lng, categoryCode, categoryText,
+                description, detailInfo, tags
         );
     }
 
@@ -185,18 +165,18 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
                 )
                 VALUES (?, ?, ?, NULL, ?, NULL, NULL, ?, ?, ?, ?, ?::jsonb, CAST(? AS vector), ?, ?, now(), now())
                 ON CONFLICT (content_id) DO UPDATE
-                SET title = EXCLUDED.title,
-                    address = EXCLUDED.address,
-                    zone_id = EXCLUDED.zone_id,
-                    lat = EXCLUDED.lat,
-                    lng = EXCLUDED.lng,
-                    category_code = EXCLUDED.category_code,
-                    description = EXCLUDED.description,
-                    tags = EXCLUDED.tags,
-                    embedding = EXCLUDED.embedding,
-                    detail_info = EXCLUDED.detail_info,
+                SET title               = EXCLUDED.title,
+                    address             = EXCLUDED.address,
+                    zone_id             = EXCLUDED.zone_id,
+                    lat                 = EXCLUDED.lat,
+                    lng                 = EXCLUDED.lng,
+                    category_code       = EXCLUDED.category_code,
+                    description         = EXCLUDED.description,
+                    tags                = EXCLUDED.tags,
+                    embedding           = EXCLUDED.embedding,
+                    detail_info         = EXCLUDED.detail_info,
                     normalized_category = EXCLUDED.normalized_category,
-                    updated_at = now()
+                    updated_at          = now()
                 """,
                 candidate.contentId(),
                 candidate.title(),
@@ -214,26 +194,14 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
     }
 
     private List<String> buildSearchQueries() {
-        List<String> focusDistricts = List.of(
-                "종로구", "중구", "용산구", "성동구", "마포구",
-                "강남구", "송파구", "서초구", "영등포구", "광진구"
+        List<String> interests = List.of(
+                "관광지", "맛집", "카페", "전시", "시장", "쇼핑", "공원", "박물관", "술집", "베이커리"
         );
-        List<String> interests = List.of("관광지", "맛집", "카페", "전시", "시장", "쇼핑", "공원", "박물관");
         List<String> queries = new ArrayList<>();
 
-        for (String interest : interests) {
-            for (String district : focusDistricts) {
-                queries.add("서울 " + district + " " + interest);
-            }
-        }
-
         for (SeoulRegion region : SeoulRegion.values()) {
-            String district = region.getZoneId();
-            if (focusDistricts.contains(district)) {
-                continue;
-            }
             for (String interest : interests) {
-                queries.add("서울 " + district + " " + interest);
+                queries.add("서울 " + region.getZoneId() + " " + interest);
             }
         }
 
@@ -245,8 +213,11 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
                 "서울 야경 명소",
                 "서울 로컬 맛집",
                 "서울 감성 카페",
-                "서울 전통시장"
+                "서울 전통시장",
+                "서울 루프탑 카페",
+                "서울 한옥 카페"
         ));
+
         return queries;
     }
 
@@ -254,18 +225,18 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
         jdbcTemplate.update("""
                 INSERT INTO travel_place_categories (code, name, parent_code, level, category_type)
                 VALUES
-                    ('ROOT', '전체', NULL, 0, 'ROOT'),
-                    ('SPOT', '명소', 'ROOT', 1, 'PLACE'),
-                    ('FOOD', '맛집', 'ROOT', 1, 'PLACE'),
-                    ('CAFE', '카페', 'ROOT', 1, 'PLACE'),
+                    ('ROOT',     '전체', NULL,   0, 'ROOT'),
+                    ('SPOT',     '명소', 'ROOT', 1, 'PLACE'),
+                    ('FOOD',     '맛집', 'ROOT', 1, 'PLACE'),
+                    ('CAFE',     '카페', 'ROOT', 1, 'PLACE'),
                     ('SHOPPING', '쇼핑', 'ROOT', 1, 'PLACE'),
-                    ('EVENT', '행사', 'ROOT', 1, 'PLACE'),
-                    ('STAY', '숙소', 'ROOT', 1, 'PLACE'),
-                    ('ETC', '기타', 'ROOT', 1, 'PLACE')
+                    ('EVENT',    '행사', 'ROOT', 1, 'PLACE'),
+                    ('STAY',     '숙소', 'ROOT', 1, 'PLACE'),
+                    ('ETC',      '기타', 'ROOT', 1, 'PLACE')
                 ON CONFLICT (code) DO UPDATE
-                SET name = EXCLUDED.name,
-                    parent_code = EXCLUDED.parent_code,
-                    level = EXCLUDED.level,
+                SET name          = EXCLUDED.name,
+                    parent_code   = EXCLUDED.parent_code,
+                    level         = EXCLUDED.level,
                     category_type = EXCLUDED.category_type
                 """);
     }
@@ -277,23 +248,23 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
 
     private String normalizeCategory(String title, String category) {
         String text = (title + " " + category).toLowerCase(Locale.ROOT);
-
-        if (containsAny(text, "카페", "커피", "디저트", "베이커리")) {
-            return CategoryNames.CAFE;
-        }
-        if (containsAny(text, "음식", "맛집", "식당", "한식", "중식", "일식", "양식", "분식", "레스토랑", "술집", "고기", "치킨")) {
-            return CategoryNames.FOOD;
-        }
-        if (containsAny(text, "쇼핑", "백화점", "마트", "시장", "상가", "아울렛", "편집숍")) {
-            return CategoryNames.SHOPPING;
-        }
-        if (containsAny(text, "호텔", "숙박", "게스트하우스", "모텔")) {
-            return CategoryNames.STAY;
-        }
-        if (containsAny(text, "공연", "전시", "축제", "행사")) {
-            return CategoryNames.EVENT;
-        }
+        if (containsAny(text, "카페", "커피", "디저트", "베이커리", "브런치")) return CategoryNames.CAFE;
+        if (containsAny(text, "음식", "맛집", "식당", "한식", "중식", "일식", "양식", "분식", "레스토랑", "술집", "고기", "치킨", "횟집")) return CategoryNames.FOOD;
+        if (containsAny(text, "쇼핑", "백화점", "마트", "시장", "상가", "아울렛", "편집숍")) return CategoryNames.SHOPPING;
+        if (containsAny(text, "호텔", "숙박", "게스트하우스", "모텔", "펜션")) return CategoryNames.STAY;
+        if (containsAny(text, "공연", "전시", "축제", "행사", "뮤지컬", "영화")) return CategoryNames.EVENT;
         return CategoryNames.SPOT;
+    }
+
+    private String toCategoryLabel(String categoryCode) {
+        return switch (categoryCode) {
+            case CategoryNames.FOOD -> "맛집";
+            case CategoryNames.CAFE -> "카페";
+            case CategoryNames.SHOPPING -> "쇼핑";
+            case CategoryNames.EVENT -> "전시·행사";
+            case CategoryNames.STAY -> "숙소";
+            default -> "명소";
+        };
     }
 
     private String resolveZoneId(String address) {
@@ -310,37 +281,10 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
         return null;
     }
 
-    private boolean containsAny(String text, String... candidates) {
-        for (String candidate : candidates) {
-            if (text.contains(candidate)) {
-                return true;
-            }
-        }
-        return false;
-    }
-
-    private Double parseNaverCoordinate(String value) {
-        if (value == null || value.isBlank()) {
-            return null;
-        }
-        try {
-            return Double.parseDouble(value) / 10_000_000D;
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
     private String toTagsJson(String categoryCode, String zoneId, String categoryText) {
-        String category = switch (categoryCode) {
-            case CategoryNames.FOOD -> "맛집";
-            case CategoryNames.CAFE -> "카페";
-            case CategoryNames.SHOPPING -> "쇼핑";
-            case CategoryNames.EVENT -> "전시행사";
-            case CategoryNames.STAY -> "숙소";
-            default -> "명소";
-        };
-        String externalCategory = categoryText.isBlank() ? category : categoryText.replace("\"", "'");
-        return "[\"%s\",\"%s\",\"%s\"]".formatted(category, zoneId, externalCategory);
+        String categoryLabel = toCategoryLabel(categoryCode);
+        String externalCategory = categoryText.isBlank() ? categoryLabel : categoryText.replace("\"", "'");
+        return "[\"%s\",\"%s\",\"%s\"]".formatted(categoryLabel, zoneId, externalCategory);
     }
 
     private String toPgVector(float[] embedding) {
@@ -350,18 +294,30 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
             if (!Float.isFinite(value)) {
                 throw new IllegalStateException("Embedding contains non-finite value at index " + i);
             }
-            if (i > 0) {
-                vector.append(',');
-            }
+            if (i > 0) vector.append(',');
             vector.append(value);
         }
         return vector.append(']').toString();
     }
 
-    private String clean(String value) {
-        if (value == null) {
-            return "";
+    private boolean containsAny(String text, String... candidates) {
+        for (String candidate : candidates) {
+            if (text.contains(candidate)) return true;
         }
+        return false;
+    }
+
+    private Double parseNaverCoordinate(String value) {
+        if (value == null || value.isBlank()) return null;
+        try {
+            return Double.parseDouble(value) / 10_000_000D;
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String clean(String value) {
+        if (value == null) return "";
         return value
                 .replaceAll("<[^>]*>", "")
                 .replace("&quot;", "\"")
@@ -369,10 +325,6 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
                 .replace("&lt;", "<")
                 .replace("&gt;", ">")
                 .trim();
-    }
-
-    private String firstNonBlank(String first, String second) {
-        return first == null || first.isBlank() ? second : first;
     }
 
     private String sha256(String value) {
@@ -389,12 +341,6 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
         }
     }
 
-    private void closeIfNeeded() {
-        if (exitOnComplete) {
-            applicationContext.close();
-        }
-    }
-
     private record TravelPlaceCandidate(
             String contentId,
             String title,
@@ -404,21 +350,22 @@ public class NaverTravelPlaceImportRunner implements ApplicationRunner {
             Double lat,
             Double lng,
             String categoryCode,
+            String naverCategory,
             String description,
             String detailInfo,
             String tags
     ) {
-        private String toEmbeddingText() {
+        String toEmbeddingText() {
             return """
                     장소명: %s
                     주소: %s
                     지역: %s
                     카테고리: %s
+                    네이버 분류: %s
                     설명: %s
                     상세정보: %s
-                    링크: %s
                     태그: %s
-                    """.formatted(title, address, zoneId, categoryCode, description, detailInfo, link, tags);
+                    """.formatted(title, address, zoneId, categoryCode, naverCategory, description, detailInfo, tags);
         }
     }
 }
