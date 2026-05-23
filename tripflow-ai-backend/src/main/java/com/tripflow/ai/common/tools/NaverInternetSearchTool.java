@@ -3,10 +3,10 @@ package com.tripflow.ai.common.tools;
 import java.util.List;
 
 import org.springframework.ai.tool.annotation.Tool;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.tripflow.ai.common.naver.NaverApiProperties;
 import com.tripflow.ai.common.naver.dto.LocalItem;
 import com.tripflow.ai.common.naver.dto.NaverImageSearchResponse;
 import com.tripflow.ai.common.naver.dto.NaverLocalSearchResponse;
@@ -19,15 +19,12 @@ import lombok.extern.slf4j.Slf4j;
 @Component
 public class NaverInternetSearchTool {
     private final WebClient webClient;
-    private final String naverClientId;
-    private final String naverClientSecret;
+    private final NaverApiProperties naverApiProperties;
 
     public NaverInternetSearchTool(
-            @Value("${naver.api.client-id}") String naverClientId,
-            @Value("${naver.api.client-secret}") String naverClientSecret,
+            NaverApiProperties naverApiProperties,
             WebClient.Builder webClientBuilder) {
-        this.naverClientId = naverClientId;
-        this.naverClientSecret = naverClientSecret;
+        this.naverApiProperties = naverApiProperties;
         this.webClient = webClientBuilder
                 .baseUrl("https://openapi.naver.com")
                 .defaultHeader("Accept", "application/json")
@@ -45,8 +42,8 @@ public class NaverInternetSearchTool {
                     .queryParam("display", 1)
                     .queryParam("sort", "sim")
                     .build())
-                .header("X-Naver-Client-Id", naverClientId)
-                .header("X-Naver-Client-Secret", naverClientSecret)
+                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
                 .retrieve()
                 .bodyToMono(NaverImageSearchResponse.class)
                 .block();
@@ -75,8 +72,8 @@ public class NaverInternetSearchTool {
                     .queryParam("query", query)
                     .queryParam("display", 5) // 최대 5개까지 가져오기
                     .build())
-                .header("X-Naver-Client-Id", naverClientId)
-                .header("X-Naver-Client-Secret", naverClientSecret)
+                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
                 .retrieve()
                 .bodyToMono(NaverLocalSearchResponse.class)
                 .block();
@@ -108,8 +105,8 @@ public class NaverInternetSearchTool {
                     .queryParam("display", 5)
                     .queryParam("sort", "sim")
                     .build())
-                .header("X-Naver-Client-Id", naverClientId)
-                .header("X-Naver-Client-Secret", naverClientSecret)
+                .header("X-Naver-Client-Id", naverApiProperties.getClientId())
+                .header("X-Naver-Client-Secret", naverApiProperties.getClientSecret())
                 .retrieve()
                 .bodyToMono(BlogSearchResponse.class)
                 .block();
