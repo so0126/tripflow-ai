@@ -39,3 +39,4 @@ out/
 ### Local config ###
 src/main/resources/application-local.properties
 src/main/resources/application-secrets.properties
+src/test/resoruces/application-test.properties
