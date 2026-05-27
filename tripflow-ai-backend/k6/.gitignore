@@ -1,6 +1,0 @@
-# k6 실행 결과물
-summary.json
-*.csv
-results/
-fixtures/*
-!fixtures/.gitkeep
