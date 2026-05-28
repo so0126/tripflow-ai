@@ -14,6 +14,14 @@
     FROM ai_review_analysis WHERE id = #{id}
   </select>
 
+  <select id="selectLatestAnalysisByReviewPostId" resultType="AiReviewAnalysis">
+    SELECT id, input_json, output_json, created_at, review_post_id
+    FROM ai_review_analysis
+    WHERE review_post_id = #{reviewPostId}
+    ORDER BY created_at DESC, id DESC
+    LIMIT 1
+  </select>
+
   <update id="updateAiReviewAnalysis" parameterType="AiReviewAnalysis">
     UPDATE ai_review_analysis
     SET input_json = #{inputJson}::jsonb, 

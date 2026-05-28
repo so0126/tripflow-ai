@@ -157,6 +157,19 @@ public class AiReviewService {
     @Transactional
     public List<AiReviewStyleResponse> createAndSaveStyles(Long planId, Long reviewPostId) {
 
+        // 0. 멱등성 가드: 이미 생성된 분석이 있으면 AI 재호출 없이 기존 결과 반환
+        AiReviewAnalysis existing = aiReviewDao.selectLatestAnalysisByReviewPostId(reviewPostId);
+        if (existing != null) {
+            log.info("기존 AI 분석 결과 반환 - reviewPostId={}, analysisId={}", reviewPostId, existing.getId());
+            List<AiReviewStyle> existingStyles = aiReviewDao.selectAllStylesByAnalysisId(existing.getId());
+            List<AiReviewStyleResponse> resultList = new ArrayList<>();
+            for (AiReviewStyle s : existingStyles) {
+                List<AiReviewHashtag> tags = aiReviewDao.selectHashtagsByStyleId(s.getId());
+                resultList.add(new AiReviewStyleResponse(s, tags));
+            }
+            return resultList;
+        }
+
         // 1. 여행 데이터 JSON 생성 (기존 Builder 활용)
         ObjectNode inputNode = createPlanInputJson(planId);
         String inputJson = inputNode.toPrettyString();

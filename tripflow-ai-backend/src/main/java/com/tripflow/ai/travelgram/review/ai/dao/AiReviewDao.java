@@ -15,5 +15,6 @@ public interface AiReviewDao {
     void insertAiReviewHashtag(AiReviewHashtag tag);
     List<AiReviewStyle> selectAllStylesByAnalysisId(Long reviewAnalysisId);
     List<AiReviewHashtag> selectHashtagsByStyleId(Long styleId);
+    AiReviewAnalysis selectLatestAnalysisByReviewPostId(Long reviewPostId);
 }
 
