@@ -15,6 +15,13 @@
     <select id="selectReviewPostsByPlanId" resultType="ReviewPost"> SELECT * FROM review_posts WHERE
         plan_id = #{planId}; </select>
 
+    <!-- 로그 식별자용: photoGroupId 하나로 reviewPostId(=id), planId 조회 -->
+    <select id="selectReviewPostByPhotoGroupId" resultType="ReviewPost">
+        SELECT id, plan_id AS planId, photo_group_id AS photoGroupId
+        FROM review_posts
+        WHERE photo_group_id = #{photoGroupId}
+    </select>
+
     <update id="updateReviewPostGroupId"> UPDATE review_posts SET photo_group_id = #{photoGroupId},
         hashtag_group_id = #{hashtagGroupId} WHERE id = #{reviewPostId} </update>
     <update id="updateReviewPostMood"> UPDATE review_posts SET overall_moods = #{overallMoods},

@@ -17,6 +17,7 @@ public interface ReviewPostDao {
         @Param("overallMoods") String overallMoods, 
         @Param("travelType") String travelType);
     ReviewPost selectReviewPostById(Long reviewPostId);
+    ReviewPost selectReviewPostByPhotoGroupId(@Param("photoGroupId") Long photoGroupId);
     void updateReviewPostStyleIdById(
         @Param("reviewPostId") Long reviewPostId,
         @Param("reviewStyleId")Long reviewStyleId);
