@@ -1,4 +1,4 @@
-package com.tripflow.ai.travelgram.review.ai.builder;
+package com.tripflow.ai.travelgram.review.ai.assembler;
 import java.util.List;
 import java.util.Map;
 
