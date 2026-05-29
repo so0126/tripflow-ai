@@ -247,8 +247,14 @@ const checkAnalysisStatus = async () => {
   })
 
   isAnalyzing.value = uploadedImages.value.some(i => !i.isAnalyzed)
-}
 
+   // 다 끝나면 폴링 멈추기
+  if (!isAnalyzing.value && uploadedImages.value.length > 0) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+
+}
 const startPolling = () => {
   if (pollingInterval.value) return
   pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
