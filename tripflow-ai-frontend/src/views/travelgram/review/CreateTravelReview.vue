@@ -107,7 +107,7 @@
               <div v-if="isAnalyzing" class="alert alert-info mt-3 d-flex align-items-center">
                 <div class="spinner-border spinner-border-sm me-2"></div>
                 <div>
-                  <strong>AI가 사진을 분석하고 있어요...</strong>
+                  <strong>AI가 사진을 분석하고 있어요... ({{ analyzedCount }}/{{ totalCount }})</strong>
                   <span class="small ms-1">잠시만 기다려주세요.</span>
           </div>
         </div>
@@ -144,8 +144,13 @@ const planId = route.params.planId
 const planTitle = route.params.planTitle || '나의 여행'
 
 const uploadedImages = ref([])
-const isAnalyzing = ref(false)
 const pollingInterval = ref(null)
+
+/* 파생 상태: 전부 uploadedImages의 각 img.isAnalyzed(원본)에서 계산 */
+const totalCount    = computed(() => uploadedImages.value.length)
+const analyzedCount = computed(() => uploadedImages.value.filter(i => i.isAnalyzed).length)
+const allAnalyzed   = computed(() => totalCount.value > 0 && analyzedCount.value === totalCount.value)
+const isAnalyzing   = computed(() => totalCount.value > 0 && analyzedCount.value <  totalCount.value)
 const isReady = ref(false)
 const currentplanInfo = ref(null)
 const isItineraryOpen = ref(false)
@@ -246,25 +251,24 @@ const checkAnalysisStatus = async () => {
     }
   })
 
-  isAnalyzing.value = uploadedImages.value.some(i => !i.isAnalyzed)
-
-   // 다 끝나면 폴링 멈추기
-  if (!isAnalyzing.value && uploadedImages.value.length > 0) {
-    clearInterval(pollingInterval.value)
-    pollingInterval.value = null
-  }
-
+  // 전부 끝났으면 폴링 정지 (isAnalyzing/canProceed는 computed라 자동 갱신됨)
+  if (allAnalyzed.value) stopPolling()
 }
+
 const startPolling = () => {
   if (pollingInterval.value) return
   pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
 }
+const stopPolling = () => {
+  if (pollingInterval.value) {
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+}
 
-onUnmounted(() => pollingInterval.value && clearInterval(pollingInterval.value))
+onUnmounted(stopPolling)
 
-const canProceed = computed(() =>
-  uploadedImages.value.length > 0 && !isAnalyzing.value
-)
+const canProceed = computed(() => allAnalyzed.value)
 
 const scrollToUploader = () => {
   document.querySelector('.uploader-anchor')?.scrollIntoView({ behavior: 'smooth' })
