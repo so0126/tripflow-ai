@@ -14,12 +14,12 @@ import com.fasterxml.jackson.databind.node.ArrayNode;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 @Component
-public class ReviewInputJsonBuilder {
+public class ReviewInputJsonAssembler {
 
     private final ObjectMapper mapper = new ObjectMapper();
     private final CurrentActivityDao activityDao;
 
-    public ReviewInputJsonBuilder(CurrentActivityDao activityDao) {
+    public ReviewInputJsonAssembler(CurrentActivityDao activityDao) {
         this.activityDao = activityDao;
     }
 
