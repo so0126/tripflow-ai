@@ -11,6 +11,8 @@ import org.springframework.web.multipart.MultipartFile;
 
 import com.tripflow.ai.common.s3.service.S3Service;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.tripflow.ai.travelgram.review.dao.ReviewHashtagDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
@@ -171,6 +173,7 @@ public class ReviewService {
     }
 
     public void analyzeTripContext(Long photoGroupId) {
+        long startedAt = System.nanoTime();
 
         // 1. [DB 조회] 해당 그룹의 모든 사진 요약 가져오기 (리스트로 반환됨)
         // for문 필요 없음! MyBatis가 List로 줍니다.
@@ -191,7 +194,15 @@ public class ReviewService {
 
         reviewPostDao.updateReviewPostMood(photoGroupId, result.getOverallMood(), result.getTravelType());
 
-        log.info("📊 여행 분석 완료: Type={}, Mood={}", result.getTravelType(), result.getOverallMood());
+        long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+        log.info("{}", ReviewAiLog.success(
+                ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
+                null,
+                null,
+                photoGroupId,
+                null,
+                null,
+                elapsedMs));
 
     }
 

@@ -19,6 +19,8 @@ import com.tripflow.ai.travelgram.review.ai.agent.PlanTitleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewStyleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.assembler.ReviewInputJsonAssembler;
 import com.tripflow.ai.travelgram.review.ai.dao.AiReviewDao;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.tripflow.ai.travelgram.review.ai.dto.entity.AiReviewAnalysis;
 import com.tripflow.ai.travelgram.review.ai.dto.entity.AiReviewHashtag;
 import com.tripflow.ai.travelgram.review.ai.dto.entity.AiReviewStyle;
@@ -156,89 +158,119 @@ public class AiReviewService {
      */
     @Transactional
     public List<AiReviewStyleResponse> createAndSaveStyles(Long planId, Long reviewPostId) {
-
-        // 0. 멱등성 가드: 이미 생성된 분석이 있으면 AI 재호출 없이 기존 결과 반환
-        AiReviewAnalysis existing = aiReviewDao.selectLatestAnalysisByReviewPostId(reviewPostId);
-        if (existing != null) {
-            log.info("기존 AI 분석 결과 반환 - reviewPostId={}, analysisId={}", reviewPostId, existing.getId());
-            List<AiReviewStyle> existingStyles = aiReviewDao.selectAllStylesByAnalysisId(existing.getId());
-            List<AiReviewStyleResponse> resultList = new ArrayList<>();
-            for (AiReviewStyle s : existingStyles) {
-                List<AiReviewHashtag> tags = aiReviewDao.selectHashtagsByStyleId(s.getId());
-                resultList.add(new AiReviewStyleResponse(s, tags));
-            }
-            return resultList;
-        }
-
-        // 1. 여행 데이터 JSON 생성 (기존 Builder 활용)
-        ObjectNode inputNode = createPlanInputJson(planId);
-        String inputJson = inputNode.toPrettyString();
-
-        // 2. ReviewPost에서 Mood, Type 조회
-        // (ReviewPostDao에 selectById가 있다고 가정하거나 추가 필요)
-        ReviewPost post = reviewPostDao.selectReviewPostById(reviewPostId);
-        if (post == null)
-            throw new IllegalArgumentException("Review Post not found");
-
-        String mood = post.getOverallMoods();
-        String type = post.getTravelType();
-
-        // 3. Agent 호출 (AI 생성)
-        GeneratedStyleResponse aiResponse = styleAgent.generateStyles(inputJson, mood, type);
-
-        // 4. 분석 이력 저장 (AiReviewAnalysis)
-        // output_json은 나중에 디버깅용으로 AI 전체 응답을 저장
-        String outputJsonString = "";
+        long startedAt = System.nanoTime();
         try {
-            outputJsonString = objectMapper.writeValueAsString(aiResponse);
-        } catch (Exception e) {
-        }
+            // 0. 멱등성 가드: 이미 생성된 분석이 있으면 AI 재호출 없이 기존 결과 반환
+            AiReviewAnalysis existing = aiReviewDao.selectLatestAnalysisByReviewPostId(reviewPostId);
+            if (existing != null) {
+                List<AiReviewStyle> existingStyles = aiReviewDao.selectAllStylesByAnalysisId(existing.getId());
+                List<AiReviewStyleResponse> resultList = new ArrayList<>();
+                for (AiReviewStyle s : existingStyles) {
+                    List<AiReviewHashtag> tags = aiReviewDao.selectHashtagsByStyleId(s.getId());
+                    resultList.add(new AiReviewStyleResponse(s, tags));
+                }
+                long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+                log.info("{}", ReviewAiLog.success(
+                        ReviewAiStep.STYLE_GENERATION,
+                        planId,
+                        reviewPostId,
+                        null,
+                        null,
+                        existing.getId(),
+                        elapsedMs));
+                return resultList;
+            }
 
-        AiReviewAnalysis analysis = AiReviewAnalysis.builder()
-                .reviewPostId(reviewPostId)
-                .createdAt(OffsetDateTime.now())
-                .inputJson(inputJson)
-                .outputJson(outputJsonString)
-                .build();
+            // 1. 여행 데이터 JSON 생성 (기존 Builder 활용)
+            ObjectNode inputNode = createPlanInputJson(planId);
+            String inputJson = inputNode.toPrettyString();
 
-        aiReviewDao.insertAiReviewAnalysis(analysis); // id 생성됨
+            // 2. ReviewPost에서 Mood, Type 조회
+            // (ReviewPostDao에 selectById가 있다고 가정하거나 추가 필요)
+            ReviewPost post = reviewPostDao.selectReviewPostById(reviewPostId);
+            if (post == null)
+                throw new IllegalArgumentException("Review Post not found");
 
-        List<AiReviewStyleResponse> resultList = new ArrayList<>();
-        // 5. Save Styles & Hashtags
-        for (GeneratedStyleResponse.StyleItem item : aiResponse.getStyles()) {
-            // 💡 [추가] 캡션 문자열 내에 있는 해시태그(#단어) 제거 로직
-            // #으로 시작하고 공백 전까지 이어지는 단어들을 모두 빈 문자열로 치환
-            String cleanCaption = item.getCaption()
-                    .replaceAll("#[\\w가-힣]+", "") // 해시태그 패턴 제거
-                    .trim();
-            // 5-1. Save Style
-            AiReviewStyle style = AiReviewStyle.builder()
-                    .reviewAnalysisId(analysis.getId())
-                    .name(item.getToneName())
-                    .toneCode(item.getToneCode())
+            String mood = post.getOverallMoods();
+            String type = post.getTravelType();
+
+            // 3. Agent 호출 (AI 생성)
+            GeneratedStyleResponse aiResponse = styleAgent.generateStyles(inputJson, mood, type);
+
+            // 4. 분석 이력 저장 (AiReviewAnalysis)
+            // output_json은 나중에 디버깅용으로 AI 전체 응답을 저장
+            String outputJsonString = "";
+            try {
+                outputJsonString = objectMapper.writeValueAsString(aiResponse);
+            } catch (Exception e) {
+            }
+
+            AiReviewAnalysis analysis = AiReviewAnalysis.builder()
+                    .reviewPostId(reviewPostId)
                     .createdAt(OffsetDateTime.now())
-                    .caption(cleanCaption) // Make sure this matches your DB column
+                    .inputJson(inputJson)
+                    .outputJson(outputJsonString)
                     .build();
 
-            aiReviewDao.insertAiReviewStyle(style);
+            aiReviewDao.insertAiReviewAnalysis(analysis); // id 생성됨
 
-            // 5-2. Save Hashtags
-            List<AiReviewHashtag> savedHashtags = new ArrayList<>();
-            for (String tagName : item.getHashtags()) {
-                String cleanTagName = tagName.replace("#", "");
-                AiReviewHashtag tag = AiReviewHashtag.builder()
-                        .reviewStyleId(style.getId())
-                        .name(cleanTagName)
+            List<AiReviewStyleResponse> resultList = new ArrayList<>();
+            // 5. Save Styles & Hashtags
+            for (GeneratedStyleResponse.StyleItem item : aiResponse.getStyles()) {
+                // 💡 [추가] 캡션 문자열 내에 있는 해시태그(#단어) 제거 로직
+                // #으로 시작하고 공백 전까지 이어지는 단어들을 모두 빈 문자열로 치환
+                String cleanCaption = item.getCaption()
+                        .replaceAll("#[\\w가-힣]+", "") // 해시태그 패턴 제거
+                        .trim();
+                // 5-1. Save Style
+                AiReviewStyle style = AiReviewStyle.builder()
+                        .reviewAnalysisId(analysis.getId())
+                        .name(item.getToneName())
+                        .toneCode(item.getToneCode())
                         .createdAt(OffsetDateTime.now())
+                        .caption(cleanCaption) // Make sure this matches your DB column
                         .build();
-                aiReviewDao.insertAiReviewHashtag(tag);
-                savedHashtags.add(tag);
+
+                aiReviewDao.insertAiReviewStyle(style);
+
+                // 5-2. Save Hashtags
+                List<AiReviewHashtag> savedHashtags = new ArrayList<>();
+                for (String tagName : item.getHashtags()) {
+                    String cleanTagName = tagName.replace("#", "");
+                    AiReviewHashtag tag = AiReviewHashtag.builder()
+                            .reviewStyleId(style.getId())
+                            .name(cleanTagName)
+                            .createdAt(OffsetDateTime.now())
+                            .build();
+                    aiReviewDao.insertAiReviewHashtag(tag);
+                    savedHashtags.add(tag);
+                }
+
+                // 5-3. Add to Result List
+                resultList.add(new AiReviewStyleResponse(style, savedHashtags));
             }
 
-            // 5-3. Add to Result List
-            resultList.add(new AiReviewStyleResponse(style, savedHashtags));
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            log.info("{}", ReviewAiLog.success(
+                    ReviewAiStep.STYLE_GENERATION,
+                    planId,
+                    reviewPostId,
+                    null,
+                    null,
+                    analysis.getId(),
+                    elapsedMs));
+            return resultList;
+        } catch (Exception e) {
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            log.error("{}", ReviewAiLog.fail(
+                    ReviewAiStep.STYLE_GENERATION,
+                    planId,
+                    reviewPostId,
+                    null,
+                    null,
+                    elapsedMs,
+                    e), e);
+            throw new RuntimeException(e);
         }
-
-        return resultList;
     }
 }

@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 
 import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
+import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.extern.slf4j.Slf4j;
@@ -32,7 +34,7 @@ public class ReviewImageAnalysisAgent {
   // 1단계: 개별 사진 요약 (Vision AI)
   // ======================================================
   public String analyzeReviewImage(String contentType, byte[] bytes) {
-    log.info("📸 Review Image Analysis Start...");
+    long startedAt = System.nanoTime();
     // 1. 시스템 프롬프트: 여행스타그램 리뷰어 페르소나 부여
     SystemMessage systemMessage = new SystemMessage(
         """
@@ -83,10 +85,26 @@ public class ReviewImageAnalysisAgent {
           .call()
           .content();
 
-      log.info("🤖 Image Analysis Result: {}", response);
+      long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+      log.info("{}", ReviewAiLog.success(
+          ReviewAiStep.PHOTO_ANALYSIS,
+          null,
+          null,
+          null,
+          null,
+          null,
+          elapsedMs));
       return response;
     } catch (Exception e) {
-      log.error("Image Analysis Failed", e);
+      long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+      log.error("{}", ReviewAiLog.fail(
+          ReviewAiStep.PHOTO_ANALYSIS,
+          null,
+          null,
+          null,
+          null,
+          elapsedMs,
+          e), e);
       return "{}"; // 실패 시 빈 JSON 반환
     }
   }
@@ -95,6 +113,7 @@ public class ReviewImageAnalysisAgent {
   // 2단계: 전체 여행 분석 (Text AI)
   // ======================================================
   public PhotoAnalysisResult analyzeTripContext(List<String> summaries) {
+    long startedAt = System.nanoTime();
     // 리스트를 하나의 문자열로 합침
     String combinedSummaries = String.join("\n- ", summaries);
 
@@ -137,8 +156,6 @@ public class ReviewImageAnalysisAgent {
           .call()
           .content();
 
-      log.info("🤖 AI Raw JSON: {}", jsonResponse);
-
       // 2. [중요] 마크다운 코드 블록 제거 (```json ... ```)
       // LLM이 친절하게 코드 블록을 씌워줄 때가 있는데, 파싱 에러나니 벗겨야 함
       if (jsonResponse.startsWith("```")) {
@@ -149,10 +166,27 @@ public class ReviewImageAnalysisAgent {
       // readValue(JSON문자열, 변환할클래스.class)
       PhotoAnalysisResult result = objectMapper.readValue(jsonResponse, PhotoAnalysisResult.class);
 
+      long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+      log.info("{}", ReviewAiLog.success(
+          ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
+          null,
+          null,
+          null,
+          null,
+          null,
+          elapsedMs));
       return result;
 
     } catch (Exception e) {
-      log.error("여행 상황 분석이 실패했습니다.", e);
+      long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+      log.error("{}", ReviewAiLog.fail(
+          ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
+          null,
+          null,
+          null,
+          null,
+          elapsedMs,
+          e), e);
       return new PhotoAnalysisResult(); // 실패 시 빈 객체 반환
     }
   }
