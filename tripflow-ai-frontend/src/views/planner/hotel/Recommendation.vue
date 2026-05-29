@@ -110,6 +110,7 @@
               </div>
             </div>
           </div>
+        </div>
 
         <!-- Confirm Button -->
         <div class="text-center">
@@ -117,7 +118,6 @@
             @next="confirmSelection" />
         </div>
       </div>
-  </div>
   </div>
 </template>
 
@@ -129,7 +129,6 @@ import hotelPlaceholder from '@/assets/img/hotel-logo.png';
 import { useTravelStore } from '@/store/travelStore';
 import { useAuthStore } from '@/store/authStore';
 import hotelApi from '@/api/hotelApi';
-import BaseSection from '@/components/common/BaseSection.vue';
 
 const router = useRouter();
 const travelStore = useTravelStore();
@@ -233,14 +232,21 @@ onMounted(async () => {
       const response = await hotelApi.recommendHotel(userId);
       console.log('3️⃣ 응답:', response);
 
-      if (response?.data?.data?.hotelSummaryList?.length > 0) {
+      const payload = response?.data?.data ?? response?.data ?? {};
+
+      if (payload?.hotelSummaryList?.length > 0) {
         console.log('4️⃣ 호텔 데이터 있음');
-        hotels.value = response.data.data.hotelSummaryList.map((hotel, index) => ({
+        hotels.value = payload.hotelSummaryList.map((hotel, index) => {
+          const nightlyPrice = Number(hotel.pricing?.roomPrice ?? 0);
+          const stayTotalPrice = Number(hotel.pricing?.stayTotalPrice ?? hotel.pricing?.totalPrice ?? nightlyPrice);
+
+          return {
           id: hotel.hotelId || hotel.hotelName,
           name: hotel.hotelName,
           location: hotel.neighborhood,
-          price: Math.ceil(hotel.pricing.roomPrice),
-          totalPrice: hotel.pricing.totalPrice,
+          price: nightlyPrice,
+          totalPrice: stayTotalPrice,
+          stayTotalPrice: stayTotalPrice,
           rating: 4.5,
           reviews: 100,
           image: getRandomHotelImage(),
@@ -256,8 +262,9 @@ onMounted(async () => {
           breakfast: true,
           pool: false,
           spa: false,
-          bookingData: response.data.data.bookingDataList?.[index] ?? null
-        }));
+          bookingData: payload.bookingDataList?.[index] ?? null
+        };
+        });
       } else {
         console.log('5️⃣ 기본값 로드');
         loadDefaultHotels();
@@ -282,9 +289,11 @@ const loadDefaultHotels = () => {
 
 const filteredHotels = computed(() => {
   return hotels.value.filter(hotel => {
-    if ((filters.value.accommodationType !== 'all' &&
-      hotel.type !== filters.value.accommodationType) ||
-      hotel.price > budget.value * rangeValue.value / 100) {
+    if (filters.value.accommodationType !== 'all' &&
+      hotel.type !== filters.value.accommodationType) {
+      return false;
+    }
+    if (hotel.price > budget.value * rangeValue.value / 100) {
       return false;
     }
     return true;
