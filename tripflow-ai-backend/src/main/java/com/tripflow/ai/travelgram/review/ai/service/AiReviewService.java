@@ -17,7 +17,7 @@ import com.tripflow.ai.planner.plan.dto.entity.PlanDay;
 import com.tripflow.ai.planner.plan.dto.entity.PlanPlace;
 import com.tripflow.ai.travelgram.review.ai.agent.PlanTitleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewStyleGenerateAgent;
-import com.tripflow.ai.travelgram.review.ai.builder.ReviewInputJsonAssembler;
+import com.tripflow.ai.travelgram.review.ai.assembler.ReviewInputJsonAssembler;
 import com.tripflow.ai.travelgram.review.ai.dao.AiReviewDao;
 import com.tripflow.ai.travelgram.review.ai.dto.entity.AiReviewAnalysis;
 import com.tripflow.ai.travelgram.review.ai.dto.entity.AiReviewHashtag;
