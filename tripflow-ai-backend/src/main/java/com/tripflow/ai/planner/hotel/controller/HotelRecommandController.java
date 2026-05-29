@@ -96,10 +96,16 @@ public class HotelRecommandController {
 
                 // 가격 정보
                 Map<String, Object> priceInfo = new HashMap<>();
-                priceInfo.put("roomPrice", recommendation.getTotalPrice());
+                long stayTotalPrice = recommendation.getTotalPrice() != null ? recommendation.getTotalPrice().longValue() : 0;
+                long nightlyPrice = recommendation.getNights() != null && recommendation.getNights() > 0
+                        ? Math.round((double) stayTotalPrice / recommendation.getNights())
+                        : stayTotalPrice;
+
+                priceInfo.put("roomPrice", nightlyPrice);
+                priceInfo.put("stayTotalPrice", stayTotalPrice);
                 priceInfo.put("tax", recommendation.getTaxAmount() != null ? recommendation.getTaxAmount() : 0);
                 priceInfo.put("fee", recommendation.getFeeAmount() != null ? recommendation.getFeeAmount() : 0);
-                long totalPrice = (recommendation.getTotalPrice() != null ? recommendation.getTotalPrice().longValue() : 0) +
+                long totalPrice = stayTotalPrice +
                                 (recommendation.getTaxAmount() != null ? recommendation.getTaxAmount().longValue() : 0) +
                                 (recommendation.getFeeAmount() != null ? recommendation.getFeeAmount().longValue() : 0);
                 priceInfo.put("totalPrice", totalPrice);
