@@ -2,6 +2,7 @@ CREATE EXTENSION IF NOT EXISTS vector;
 
 DROP TABLE IF EXISTS payment_transactions, hotel_bookings, hotel_rate_plan_prices, hotel_rate_plans, hotel_rooms, hotels CASCADE;
 DROP TABLE IF EXISTS chat_memory_vectors, chat_memories, checklist_items, checklists CASCADE;
+DROP TABLE IF EXISTS review_jobs CASCADE;
 DROP TABLE IF EXISTS ai_review_hashtags, ai_review_styles, ai_review_analysis CASCADE;
 DROP TABLE IF EXISTS review_hashtags, review_hashtag_groups, review_photos, review_photo_groups, review_posts CASCADE;
 DROP TABLE IF EXISTS image_search_candidates, image_search_sessions, image_places CASCADE;
@@ -281,6 +282,29 @@ CREATE TABLE review_photos (
     order_index INTEGER NOT NULL DEFAULT 0,
     summary TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+);
+
+CREATE TABLE review_jobs (
+    id BIGSERIAL PRIMARY KEY,
+    job_type VARCHAR(50) NOT NULL,
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    review_post_id BIGINT REFERENCES review_posts(id) ON DELETE CASCADE,
+    photo_group_id BIGINT REFERENCES review_photo_groups(id) ON DELETE CASCADE,
+    photo_id BIGINT REFERENCES review_photos(id) ON DELETE CASCADE,
+    error_message TEXT,
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    updated_at TIMESTAMPTZ,
+    CONSTRAINT review_jobs_exactly_one_target_chk CHECK (
+        (CASE WHEN review_post_id IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN photo_group_id IS NOT NULL THEN 1 ELSE 0 END) +
+        (CASE WHEN photo_id IS NOT NULL THEN 1 ELSE 0 END) = 1
+    ),
+    CONSTRAINT review_jobs_job_type_chk CHECK (
+        job_type IN ('PHOTO_ANALYSIS', 'TRIP_CONTEXT_ANALYSIS', 'STYLE_GENERATION')
+    ),
+    CONSTRAINT review_jobs_status_chk CHECK (
+        status IN ('PENDING', 'RUNNING', 'SUCCESS', 'FAILED')
+    )
 );
 
 CREATE TABLE review_hashtag_groups (

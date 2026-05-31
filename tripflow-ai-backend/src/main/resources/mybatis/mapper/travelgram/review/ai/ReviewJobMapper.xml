@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="UTF-8" ?>
+<!DOCTYPE mapper
+  PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN"
+  "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.tripflow.ai.travelgram.review.ai.dao.ReviewJobDao">
+
+  <insert id="insertReviewJob" parameterType="ReviewJob" useGeneratedKeys="true" keyProperty="id" keyColumn="id">
+    INSERT INTO review_jobs (
+      job_type,
+      status,
+      review_post_id,
+      photo_group_id,
+      photo_id,
+      error_message,
+      created_at,
+      updated_at
+    )
+    VALUES (
+      #{jobType},
+      #{status},
+      #{reviewPostId},
+      #{photoGroupId},
+      #{photoId},
+      #{errorMessage},
+      COALESCE(#{createdAt}, NOW()),
+      #{updatedAt}
+    )
+  </insert>
+
+  <select id="selectReviewJobById" resultType="ReviewJob">
+    SELECT
+      id,
+      job_type AS jobType,
+      status,
+      review_post_id AS reviewPostId,
+      photo_group_id AS photoGroupId,
+      photo_id AS photoId,
+      error_message AS errorMessage,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM review_jobs
+    WHERE id = #{id}
+  </select>
+
+  <select id="selectReviewJobsByReviewPostId" resultType="ReviewJob">
+    SELECT
+      id,
+      job_type AS jobType,
+      status,
+      review_post_id AS reviewPostId,
+      photo_group_id AS photoGroupId,
+      photo_id AS photoId,
+      error_message AS errorMessage,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM review_jobs
+    WHERE review_post_id = #{reviewPostId}
+    ORDER BY id DESC
+  </select>
+
+  <select id="selectReviewJobsByPhotoGroupId" resultType="ReviewJob">
+    SELECT
+      id,
+      job_type AS jobType,
+      status,
+      review_post_id AS reviewPostId,
+      photo_group_id AS photoGroupId,
+      photo_id AS photoId,
+      error_message AS errorMessage,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM review_jobs
+    WHERE photo_group_id = #{photoGroupId}
+    ORDER BY id DESC
+  </select>
+
+  <select id="selectReviewJobsByPhotoId" resultType="ReviewJob">
+    SELECT
+      id,
+      job_type AS jobType,
+      status,
+      review_post_id AS reviewPostId,
+      photo_group_id AS photoGroupId,
+      photo_id AS photoId,
+      error_message AS errorMessage,
+      created_at AS createdAt,
+      updated_at AS updatedAt
+    FROM review_jobs
+    WHERE photo_id = #{photoId}
+    ORDER BY id DESC
+  </select>
+
+  <update id="updateReviewJobStatus">
+    UPDATE review_jobs
+    SET status = #{status},
+        error_message = #{errorMessage},
+        updated_at = #{updatedAt}
+    WHERE id = #{id}
+  </update>
+
+</mapper>
