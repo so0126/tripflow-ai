@@ -104,6 +104,15 @@
         <p>여행의 분위기를 감지하고 있습니다...</p>
       </div>
     </div>
+
+    <!-- ================= Error Overlay ================= -->
+    <div v-if="hasError" class="error-overlay">
+      <div class="error-overlay-card">
+        <ErrorRetry @retry="goNext">
+          분석에 실패했어요.<br />잠시 후 다시 시도해 주세요.
+        </ErrorRetry>
+      </div>
+    </div>
   </div>
 </template>
 
@@ -115,6 +124,7 @@ import api from '@/api/travelgramApi'
 
 import TipBox from '@/components/common/TipBox.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
+import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
@@ -123,6 +133,7 @@ const reviewStore = useReviewStore()
 const photos = ref([...reviewStore.photos])
 const mainPhotoId = ref(reviewStore.mainPhotoId)
 const isLoading = ref(false)
+const hasError = ref(false)
 
 /* ================= Init ================= */
 onMounted(() => {
@@ -169,6 +180,7 @@ const canProceed = computed(() =>
 const goNext = async () => {
   if (!canProceed.value) return
   isLoading.value = true
+  hasError.value = false
 
   try {
     reviewStore.setPhotos(photos.value)
@@ -189,6 +201,10 @@ const goNext = async () => {
       name: 'CaptionSelect',
       params: { planId: reviewStore.planId }
     })
+  } catch (e) {
+    // 순서 저장/분석 실패(5xx·네트워크) — 사진 순서 화면은 유지하고 재시도 가능하게
+    console.error('사진 순서 저장 또는 분석 실패', e)
+    hasError.value = true
   } finally {
     isLoading.value = false
   }
@@ -274,5 +290,24 @@ const goBack = () => router.push({ name: 'CreateTravelReview' })
 .loading-content {
   text-align: center;
   color: #1b3b6f;
+}
+
+/* ================= Error ================= */
+.error-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(255, 255, 255, 0.85);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 9999;
+  backdrop-filter: blur(5px);
+}
+
+.error-overlay-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 0.5rem 2.5rem;
+  box-shadow: 0 8px 24px rgba(27, 59, 111, 0.12);
 }
 </style>

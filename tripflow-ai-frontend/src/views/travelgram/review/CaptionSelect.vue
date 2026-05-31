@@ -40,6 +40,11 @@
         text="AI가 여행 이야기를 한 장면씩 엮고 있어요…"
       />
 
+      <!-- 에러 -->
+      <ErrorRetry v-else-if="hasError" @retry="loadStyles">
+        AI 후기 생성에 실패했어요.<br />잠시 후 다시 시도해 주세요.
+      </ErrorRetry>
+
       <!-- 결과 -->
       <div v-else class="caption-list">
         <div
@@ -102,30 +107,41 @@ import PageHeader from '@/components/common/header/PageHeader.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
 import { JOURNEY_SUBTITLES, journeySteps } from '@/constants/journeySubtitles'
 import IconSpinner from '@/components/common/spinner/IconSpinner.vue'
+import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
 
 const isLoading = ref(false)
+const hasError = ref(false)
 const isAnalyzing = ref(false)
 const selectedIndex = ref(null)
 
 const canProceed = computed(() => selectedIndex.value !== null)
 const stepSubtitle = computed(() => JOURNEY_SUBTITLES[3])
 
-onMounted(async () => {
-  if (reviewStore.generatedOptions.length > 0) return
-
+// AI 스타일 생성 호출 — 재시도 버튼에서도 다시 부를 수 있도록 함수로 분리
+const loadStyles = async () => {
   isLoading.value = true
+  hasError.value = false
   try {
     const res = await api.generateAiStyles(
       reviewStore.planId,
       reviewStore.reviewPostId
     )
     reviewStore.setGeneratedOptions(res.data.data)
+  } catch (e) {
+    // 동기 호출이라 서버 실패(5xx)/네트워크 오류가 여기로 전파됨
+    console.error('AI 스타일 생성 실패', e)
+    hasError.value = true
   } finally {
     isLoading.value = false
   }
+}
+
+onMounted(() => {
+  if (reviewStore.generatedOptions.length > 0) return
+  loadStyles()
 })
 
 const selectStyle = (index) => {
