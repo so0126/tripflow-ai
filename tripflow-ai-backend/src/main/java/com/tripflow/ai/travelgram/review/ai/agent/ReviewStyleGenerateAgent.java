@@ -3,14 +3,10 @@ package com.tripflow.ai.travelgram.review.ai.agent;
 import org.springframework.ai.chat.client.ChatClient;
 import org.springframework.stereotype.Component;
 import com.tripflow.ai.travelgram.review.ai.dto.response.GeneratedStyleResponse;
-import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
-import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Component
-@Slf4j
 @RequiredArgsConstructor
 public class ReviewStyleGenerateAgent {
 
@@ -18,7 +14,6 @@ public class ReviewStyleGenerateAgent {
     private final ObjectMapper objectMapper;
 
     public GeneratedStyleResponse generateStyles(String tripJson, String mood, String travelType) {
-        long startedAt = System.nanoTime();
         ChatClient chatClient = chatClientBuilder.build();
 
         String systemPrompt = """
@@ -112,27 +107,9 @@ public class ReviewStyleGenerateAgent {
             String cleanJson = response.replaceAll("```json", "").replaceAll("```", "").trim();
 
             GeneratedStyleResponse result = objectMapper.readValue(cleanJson, GeneratedStyleResponse.class);
-            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.info("{}", ReviewAiLog.success(
-                    ReviewAiStep.STYLE_GENERATION,
-                    null,
-                    null,
-                    null,
-                    null,
-                    null,
-                    elapsedMs));
             return result;
 
         } catch (Exception e) {
-            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.error("{}", ReviewAiLog.fail(
-                    ReviewAiStep.STYLE_GENERATION,
-                    null,
-                    null,
-                    null,
-                    null,
-                    elapsedMs,
-                    e), e);
             throw new RuntimeException("AI Style Generation Error");
         }
     }
