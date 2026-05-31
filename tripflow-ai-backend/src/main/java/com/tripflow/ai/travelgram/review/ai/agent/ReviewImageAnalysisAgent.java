@@ -73,16 +73,11 @@ public class ReviewImageAnalysisAgent {
         .build();
 
     // 4. LLM 호출
-    try {
-      String response = chatClient.prompt()
-          .messages(systemMessage, userMessage)
-          .call()
-          .content();
-
-      return response;
-    } catch (Exception e) {
-      return "{}"; // 실패 시 빈 JSON 반환
-    }
+    // 실패(외부 API 오류 등)는 삼키지 않고 호출자(service)로 전파 → service가 status=FAILED로 기록
+    return chatClient.prompt()
+        .messages(systemMessage, userMessage)
+        .call()
+        .content();
   }
 
   // ======================================================

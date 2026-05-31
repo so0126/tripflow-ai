@@ -27,7 +27,7 @@ public class ReviewPhotoAnalysisService {
             // 1. AI 분석 (시간이 오래 걸리는 작업)
             String summary = reviewImageAnalysisAgent.analyzeReviewImage(contentType, imageBytes);
 
-            // 2. 결과 DB 업데이트
+            // 2. 결과 DB 업데이트 (summary + status=SUCCESS를 한 번에)
             reviewPhotoDao.updatePhotoSummary(photoId, summary);
 
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
@@ -40,6 +40,8 @@ public class ReviewPhotoAnalysisService {
                     null,
                     elapsedMs));
         } catch (Exception e) {
+            // 분석 실패 → status=FAILED로 기록 (프론트 폴링이 멈추고 재시도 UI를 띄울 수 있게)
+            reviewPhotoDao.updatePhotoStatus(photoId, "FAILED");
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
             log.error("{}", ReviewAiLog.fail(
                     ReviewAiStep.PHOTO_ANALYSIS,
