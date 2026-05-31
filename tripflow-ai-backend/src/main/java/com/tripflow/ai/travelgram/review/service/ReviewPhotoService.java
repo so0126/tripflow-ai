@@ -33,7 +33,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ReviewService {
+public class ReviewPhotoService {
 
     private final S3Service s3Service;
 
@@ -42,7 +42,7 @@ public class ReviewService {
     private final ReviewHashtagDao reviewHashtagDao;
 
     private final ReviewImageAnalysisAgent reviewImageAnalysisAgent;
-    private final ReviewAnalysisService reviewAnalysisService;
+    private final ReviewPhotoAnalysisService reviewAnalysisService;
 
     // ======================================
     // 1) 리뷰 포스트 영역

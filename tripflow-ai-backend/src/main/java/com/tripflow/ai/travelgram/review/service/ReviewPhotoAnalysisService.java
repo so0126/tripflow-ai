@@ -13,7 +13,7 @@ import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 @Slf4j
 @Service
 @RequiredArgsConstructor
-public class ReviewAnalysisService {
+public class ReviewPhotoAnalysisService {
 
     private final ReviewImageAnalysisAgent reviewImageAnalysisAgent;
     private final ReviewPhotoDao reviewPhotoDao;

@@ -41,7 +41,7 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 @RequiredArgsConstructor
 @Service
-public class AiReviewService {
+public class ReviewAiService {
     private final PlanDao planDao;
     private final PlanDayDao dayDao;
     private final PlanPlaceDao placeDao;

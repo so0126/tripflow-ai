@@ -20,7 +20,7 @@ import com.tripflow.ai.travelgram.review.dto.request.HashtagUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewPhotoUploadResponse;
-import com.tripflow.ai.travelgram.review.service.ReviewService;
+import com.tripflow.ai.travelgram.review.service.ReviewPhotoService;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import lombok.RequiredArgsConstructor;
@@ -31,7 +31,7 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @RequestMapping("/reviews")
 public class ReviewController {
-    private final ReviewService reviewService;
+    private final ReviewPhotoService reviewService;
     private final ObjectMapper objectMapper; // ObjectMapper 주입
 
     // ======================================
