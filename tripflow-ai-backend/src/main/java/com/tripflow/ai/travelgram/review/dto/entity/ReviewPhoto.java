@@ -17,5 +17,6 @@ public class ReviewPhoto {
     private String fileUrl;
     private Integer orderIndex;
     private String summary;
+    private String status; // PENDING / SUCCESS / FAILED — 사진 AI 분석 상태
     private OffsetDateTime createdAt;
 }

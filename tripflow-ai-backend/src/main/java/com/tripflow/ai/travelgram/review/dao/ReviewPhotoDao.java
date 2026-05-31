@@ -19,6 +19,7 @@ public interface ReviewPhotoDao {
                       @Param("photoGroupId") Long photoGroupId);
 
     void updatePhotoSummary(@Param("photoId") Long photoId, @Param("summary") String summary);
+    void updatePhotoStatus(@Param("photoId") Long photoId, @Param("status") String status);
     ReviewPhoto selectReviewPhotoById(Long id);
     ReviewPhotoGroup selectPhotoGroupByPostId(Long postId);
     List<ReviewPhoto> selectReviewPhotosByPhotoGroupId(Long photoGroupId);

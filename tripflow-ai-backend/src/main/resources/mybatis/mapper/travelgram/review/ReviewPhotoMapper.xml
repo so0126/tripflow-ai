@@ -19,14 +19,14 @@
     order_index, created_at, summary ) VALUES ( #{photoGroupId}, #{fileUrl}, #{orderIndex}, now(),
     #{summary} ); </insert>
 
-  <select id="selectReviewPhotoById" resultType="ReviewPhoto"> SELECT id, file_url, order_index, created_at, photo_group_id, summary
+  <select id="selectReviewPhotoById" resultType="ReviewPhoto"> SELECT id, file_url, order_index, created_at, photo_group_id, summary, status
     FROM review_photos WHERE id = #{id} </select>
 
 
-  <select id="selectReviewPhotosByPhotoGroupId" resultType="ReviewPhoto"> 
-    SELECT id, file_url, order_index, created_at, photo_group_id, summary 
-    FROM review_photos 
-    WHERE photo_group_id = #{photoGroupId} 
+  <select id="selectReviewPhotosByPhotoGroupId" resultType="ReviewPhoto">
+    SELECT id, file_url, order_index, created_at, photo_group_id, summary, status
+    FROM review_photos
+    WHERE photo_group_id = #{photoGroupId}
   </select>
 
 
@@ -38,7 +38,11 @@
   <update id="updatePhotoOrder"> UPDATE review_photos SET order_index = #{orderIndex} WHERE id =
     #{photoId} AND photo_group_id = #{photoGroupId} </update>
 
-  <update id="updatePhotoSummary"> UPDATE review_photos SET summary = #{summary} WHERE id =
+  <!-- 성공 경로 전용: 요약 저장과 동시에 상태를 SUCCESS로 (한 번의 UPDATE로 원자적 갱신) -->
+  <update id="updatePhotoSummary"> UPDATE review_photos SET summary = #{summary}, status = 'SUCCESS' WHERE id =
+    #{photoId} </update>
+
+  <update id="updatePhotoStatus"> UPDATE review_photos SET status = #{status} WHERE id =
     #{photoId} </update>
 
 </mapper>

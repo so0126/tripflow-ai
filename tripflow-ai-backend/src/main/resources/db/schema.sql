@@ -280,7 +280,9 @@ CREATE TABLE review_photos (
     file_url TEXT NOT NULL,
     order_index INTEGER NOT NULL DEFAULT 0,
     summary TEXT,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    CONSTRAINT review_photos_status_chk CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED'))
 );
 
 CREATE TABLE review_hashtag_groups (
