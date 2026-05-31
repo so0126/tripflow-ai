@@ -1,6 +1,9 @@
 package com.tripflow.ai.planner.plan.dao;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 
 import com.tripflow.ai.planner.plan.dto.entity.CurrentActivity;
 
@@ -15,6 +18,7 @@ public interface CurrentActivityDao {
 
     CurrentActivity selectCurrentActivityById(Long id);
     CurrentActivity selectCurrentActivityByPlanPlaceId(Long placeId);
+    List<CurrentActivity> selectCurrentActivitiesByPlanPlaceIds(@Param("planPlaceIds") List<Long> planPlaceIds);
 
     // List<CurrentActivity> selectCurrentActivitiesByPlanId(Long planPlaceId);
     

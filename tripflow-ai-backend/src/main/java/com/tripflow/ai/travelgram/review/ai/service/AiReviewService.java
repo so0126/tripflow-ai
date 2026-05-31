@@ -5,6 +5,7 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -12,8 +13,10 @@ import org.springframework.transaction.annotation.Transactional;
 import com.tripflow.ai.planner.plan.dao.PlanDao;
 import com.tripflow.ai.planner.plan.dao.PlanDayDao;
 import com.tripflow.ai.planner.plan.dao.PlanPlaceDao;
+import com.tripflow.ai.planner.plan.dao.CurrentActivityDao;
 import com.tripflow.ai.planner.plan.dto.entity.Plan;
 import com.tripflow.ai.planner.plan.dto.entity.PlanDay;
+import com.tripflow.ai.planner.plan.dto.entity.CurrentActivity;
 import com.tripflow.ai.planner.plan.dto.entity.PlanPlace;
 import com.tripflow.ai.travelgram.review.ai.agent.PlanTitleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewStyleGenerateAgent;
@@ -42,6 +45,7 @@ public class AiReviewService {
     private final PlanDao planDao;
     private final PlanDayDao dayDao;
     private final PlanPlaceDao placeDao;
+    private final CurrentActivityDao activityDao;
 
     private final ReviewPhotoDao photoDao;
     private final ReviewInputJsonAssembler builder;
@@ -69,8 +73,21 @@ public class AiReviewService {
             placesByDayId.put(day.getId(), places);
         }
 
+        List<Long> planPlaceIds = placesByDayId.values().stream()
+                .flatMap(List::stream)
+                .map(PlanPlace::getId)
+                .collect(Collectors.toList());
+
+        Map<Long, CurrentActivity> activitiesByPlanPlaceId = new HashMap<>();
+        if (!planPlaceIds.isEmpty()) {
+            List<CurrentActivity> activities = activityDao.selectCurrentActivitiesByPlanPlaceIds(planPlaceIds);
+            for (CurrentActivity activity : activities) {
+                activitiesByPlanPlaceId.put(activity.getPlanPlaceId(), activity);
+            }
+        }
+
         // 🟦 4) builder 호출해서 JsonNode 생성
-        return builder.build(plan, planDays, placesByDayId);
+        return builder.build(plan, planDays, placesByDayId, activitiesByPlanPlaceId);
 
     }
 

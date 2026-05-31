@@ -4,7 +4,6 @@ import java.util.Map;
 
 import org.springframework.stereotype.Component;
 
-import com.tripflow.ai.planner.plan.dao.CurrentActivityDao;
 import com.tripflow.ai.planner.plan.dto.entity.CurrentActivity;
 import com.tripflow.ai.planner.plan.dto.entity.Plan;
 import com.tripflow.ai.planner.plan.dto.entity.PlanDay;
@@ -17,15 +16,11 @@ import com.fasterxml.jackson.databind.node.ObjectNode;
 public class ReviewInputJsonAssembler {
 
     private final ObjectMapper mapper = new ObjectMapper();
-    private final CurrentActivityDao activityDao;
-
-    public ReviewInputJsonAssembler(CurrentActivityDao activityDao) {
-        this.activityDao = activityDao;
-    }
 
     public ObjectNode build(Plan plan,
                             List<PlanDay> planDays,
-                            Map<Long, List<PlanPlace>> placesByDayId) {
+                            Map<Long, List<PlanPlace>> placesByDayId,
+                            Map<Long, CurrentActivity> activitiesByPlanPlaceId) {
 
         ObjectNode root = mapper.createObjectNode();
 
@@ -53,7 +48,7 @@ public class ReviewInputJsonAssembler {
                     ObjectNode placeNode = mapper.createObjectNode();
                     placeNode.put("place_name", place.getTitle());
 
-                    CurrentActivity activity = activityDao.selectCurrentActivityByPlanPlaceId(place.getId());
+                    CurrentActivity activity = activitiesByPlanPlaceId.get(place.getId());
                     if (activity != null) {
                         placeNode.put("memo", activity.getMemo() == null ? "" : activity.getMemo());
                         placeNode.put("actual_cost", activity.getActualCost() == null ? 0
