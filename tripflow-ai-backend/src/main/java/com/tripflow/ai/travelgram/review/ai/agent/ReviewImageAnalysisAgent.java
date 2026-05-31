@@ -124,27 +124,25 @@ public class ReviewImageAnalysisAgent {
     UserMessage userMessage = new UserMessage(
         "사진 요약 모음입니다. :\n- " + combinedSummaries);
 
+    // 1. LLM에게 응답 받기 (아직은 String 상태)
+    // 실패(외부 API 오류·JSON 파싱 실패)는 삼키지 않고 호출자(service)로 전파한다.
+    String jsonResponse = chatClient.prompt()
+        .messages(systemMessage, userMessage)
+        .call()
+        .content();
+
+    // 2. [중요] 마크다운 코드 블록 제거 (```json ... ```)
+    // LLM이 친절하게 코드 블록을 씌워줄 때가 있는데, 파싱 에러나니 벗겨야 함
+    if (jsonResponse.startsWith("```")) {
+      jsonResponse = jsonResponse.replaceAll("^```json", "").replaceAll("^```", "").replaceAll("```$", "");
+    }
+
+    // 3. ObjectMapper로 String -> Object 변환 (핵심!)
+    // readValue(JSON문자열, 변환할클래스.class)
     try {
-      // 1. LLM에게 응답 받기 (아직은 String 상태)
-      String jsonResponse = chatClient.prompt()
-          .messages(systemMessage, userMessage)
-          .call()
-          .content();
-
-      // 2. [중요] 마크다운 코드 블록 제거 (```json ... ```)
-      // LLM이 친절하게 코드 블록을 씌워줄 때가 있는데, 파싱 에러나니 벗겨야 함
-      if (jsonResponse.startsWith("```")) {
-        jsonResponse = jsonResponse.replaceAll("^```json", "").replaceAll("^```", "").replaceAll("```$", "");
-      }
-
-      // 3. ObjectMapper로 String -> Object 변환 (핵심!)
-      // readValue(JSON문자열, 변환할클래스.class)
-      PhotoAnalysisResult result = objectMapper.readValue(jsonResponse, PhotoAnalysisResult.class);
-
-      return result;
-
-    } catch (Exception e) {
-      return new PhotoAnalysisResult(); // 실패 시 빈 객체 반환
+      return objectMapper.readValue(jsonResponse, PhotoAnalysisResult.class);
+    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+      throw new RuntimeException("Trip context analysis JSON 파싱 실패", e);
     }
   }
 }

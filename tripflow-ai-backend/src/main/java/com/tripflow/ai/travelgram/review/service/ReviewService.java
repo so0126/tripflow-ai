@@ -188,21 +188,36 @@ public class ReviewService {
         requestDto.setPhotoGroupId(photoGroupId);
         requestDto.setSummaries(summaryList); // DB에서 가져온 리스트를 바로 넣음
 
-        // 3. [LLM 호출] 에이전트에게 DTO를 넘김
-        // 에이전트 코드는 아래 3단계에서 설명
-        PhotoAnalysisResult result = reviewImageAnalysisAgent.analyzeTripContext(requestDto.getSummaries());
+        try {
+            // 3. [LLM 호출] 에이전트에게 DTO를 넘김
+            // 에이전트 코드는 아래 3단계에서 설명
+            PhotoAnalysisResult result = reviewImageAnalysisAgent.analyzeTripContext(requestDto.getSummaries());
 
-        reviewPostDao.updateReviewPostMood(photoGroupId, result.getOverallMood(), result.getTravelType());
+            reviewPostDao.updateReviewPostMood(photoGroupId, result.getOverallMood(), result.getTravelType());
 
-        long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
-        log.info("{}", ReviewAiLog.success(
-                ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
-                null,
-                null,
-                photoGroupId,
-                null,
-                null,
-                elapsedMs));
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            log.info("{}", ReviewAiLog.success(
+                    ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
+                    null,
+                    null,
+                    photoGroupId,
+                    null,
+                    null,
+                    elapsedMs));
+        } catch (Exception e) {
+            // AI 실패(외부 API 오류·JSON 파싱 실패) 시 빈 무드를 저장하지 않고
+            // fail 로그를 남긴 뒤 호출자에게 전파한다.
+            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
+            log.error("{}", ReviewAiLog.fail(
+                    ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
+                    null,
+                    null,
+                    photoGroupId,
+                    null,
+                    elapsedMs,
+                    e), e);
+            throw new RuntimeException(e);
+        }
 
     }
 
