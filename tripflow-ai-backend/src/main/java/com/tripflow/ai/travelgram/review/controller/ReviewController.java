@@ -21,7 +21,7 @@ import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateReque
 import com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewPhotoUploadResponse;
 import com.tripflow.ai.travelgram.review.service.ReviewPhotoService;
-import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tripflow.ai.travelgram.review.service.ReviewPostService;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -31,8 +31,8 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 @RequestMapping("/reviews")
 public class ReviewController {
-    private final ReviewPhotoService reviewService;
-    private final ObjectMapper objectMapper; // ObjectMapper 주입
+    private final ReviewPhotoService reviewPhotoService;
+    private final ReviewPostService reviewPostService;
 
     // ======================================
     // 1) 리뷰 포스트 영역
@@ -42,7 +42,7 @@ public class ReviewController {
     public ResponseEntity<ReviewCreateResponse> createReview(
             @RequestParam("planId") Long planId) {
 
-        ReviewCreateResponse result = reviewService.createReview(planId);
+        ReviewCreateResponse result = reviewPostService.createReview(planId);
 
         return ResponseEntity.ok(result);
     }
@@ -66,7 +66,7 @@ public class ReviewController {
             @RequestPart("files") List<MultipartFile> files) {
         // JSON 파싱 로직 싹 다 삭제하고, 바로 서비스 호출!
         // (서비스 메서드 시그니처도 아까 우리가 수정했으므로 딱 맞습니다)
-        List<ReviewPhotoUploadResponse> result = reviewService.uploadPhotosBatch(files, photoGroupId, startOrderIndex);
+        List<ReviewPhotoUploadResponse> result = reviewPhotoService.uploadPhotosBatch(files, photoGroupId, startOrderIndex);
 
         return ResponseEntity.ok(result);
     }
@@ -74,13 +74,13 @@ public class ReviewController {
     @GetMapping("/photos")
     public ResponseEntity<List<ReviewPhoto>> getPhotosByGroup(@RequestParam("photoGroupId") Long photoGroupId) {
         // Service에 해당 메서드가 없다면 추가해야 합니다 (아래 설명)
-        List<ReviewPhoto> photos = reviewService.getReviewPhotos(photoGroupId);
+        List<ReviewPhoto> photos = reviewPhotoService.getReviewPhotos(photoGroupId);
         return ResponseEntity.ok(photos);
     }
 
     @PutMapping("/photo/order")
     public ResponseEntity<?> updatePhotoOrder(@RequestBody ReviewPhotoOrderUpdateRequest request) {
-        reviewService.updatePhotoOrder(request);
+        reviewPhotoService.updatePhotoOrder(request);
         return ResponseEntity.noContent().build();
     }
 
@@ -88,7 +88,7 @@ public class ReviewController {
     public ResponseEntity<Void> updatePhotoMoods(@RequestParam("photoGroupId") Long photoGroupId) {
 
         // 서비스 실행 (내부에서 DB 업데이트까지 완료됨)
-        reviewService.analyzeTripContext(photoGroupId);
+        reviewPostService.analyzeTripContext(photoGroupId);
 
         // 내용물 없이 성공 신호(200 OK)만 보냄
         return ResponseEntity.ok().build();
@@ -97,7 +97,7 @@ public class ReviewController {
     @PostMapping("/style/select")
     public ResponseEntity<Void> selectStyle(@RequestParam("reviewPostId") Long reviewPostId,
             @RequestParam("reviewStyleId") Long reviewStyleId) {
-        reviewService.selectStyle(reviewPostId, reviewStyleId);
+        reviewPostService.selectStyle(reviewPostId, reviewStyleId);
         return ResponseEntity.ok().build();
     }
 
@@ -105,14 +105,14 @@ public class ReviewController {
     @PostMapping("/hashtags/create")
     public ResponseEntity<Void> updateHashtag(@RequestBody HashtagUpdateRequest request) {
         // request.getNames()는 ["감성", "여행", "맛집"] 같은 리스트입니다.
-        reviewService.updateHashtags(request.getHashtagGroupId(), request.getNames());
+        reviewPostService.updateHashtags(request.getHashtagGroupId(), request.getNames());
         return ResponseEntity.ok().build();
     }
 
     @PostMapping("/caption/update")
     public ResponseEntity<Void> updateCaption(@RequestParam("reviewPostId") Long reviewPostId,
             @RequestParam("caption") String caption) {
-        reviewService.updateCaption(reviewPostId, caption);
+        reviewPostService.updateCaption(reviewPostId, caption);
         return ResponseEntity.ok().build();
     }
 

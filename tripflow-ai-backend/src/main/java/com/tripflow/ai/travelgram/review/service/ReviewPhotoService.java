@@ -10,21 +10,10 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
 import com.tripflow.ai.common.s3.service.S3Service;
-import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
-import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
-import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
-import com.tripflow.ai.travelgram.review.dao.ReviewHashtagDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
-import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewHashtagGroup;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhotoGroup;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewPost;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest.PhotoOrderItem;
-import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotosAnalysisRequest;
-import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
-import com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewPhotoUploadResponse;
 
 import lombok.RequiredArgsConstructor;
@@ -38,42 +27,7 @@ public class ReviewPhotoService {
     private final S3Service s3Service;
 
     private final ReviewPhotoDao reviewPhotoDao;
-    private final ReviewPostDao reviewPostDao;
-    private final ReviewHashtagDao reviewHashtagDao;
-
-    private final ReviewImageAnalysisAgent reviewImageAnalysisAgent;
     private final ReviewPhotoAnalysisService reviewAnalysisService;
-
-    // ======================================
-    // 1) 리뷰 포스트 영역
-    // ======================================
-
-    @Transactional
-    public ReviewCreateResponse createReview(Long planId) {
-        ReviewPost post = ReviewPost.builder()
-                .planId(planId)
-                .build();
-
-        // 2. DB insert → post.id 자동 채워짐
-        reviewPostDao.insertDraft(post);
-
-        // 3. photo_group, hashtag_group 생성 시 reviewPostId 사용
-        ReviewPhotoGroup photoGroup = ReviewPhotoGroup.builder()
-                .reviewPostId(post.getId())
-                .build();
-        ReviewHashtagGroup hashtagGroup = ReviewHashtagGroup.builder()
-                .reviewPostId(post.getId())
-                .build();
-
-        // 4. DB insert -> group.id 자동 생성됨
-        reviewPhotoDao.insertReviewPhotoGroup(photoGroup);
-        reviewHashtagDao.insertHashtagGroup(hashtagGroup);
-        // 5. 리뷰 포스트에 그룹 아이디 업데이트
-        reviewPostDao.updateReviewPostGroupId(post.getId(), photoGroup.getId(), hashtagGroup.getId());
-
-        // 결과 리턴
-        return new ReviewCreateResponse(post.getId(), photoGroup.getId(), hashtagGroup.getId());
-    }
 
     // ======================================
     // 2) 사진 업로드 (JSON 파싱 로직 완전 삭제 버전)
@@ -142,15 +96,13 @@ public class ReviewPhotoService {
 
         reviewPhotoDao.insertReviewPhoto(photo);
 
-        // 3. ★ 비동기 AI 분석 요청 (기다리지 않고 바로 넘어감)
         try {
             reviewAnalysisService.analyzePhotoAndUpdateDb(
                     photo.getId(),
                     file.getContentType(),
-                    file.getBytes() // IO 발생하므로 주의, 파일이 너무 크면 InputStream 방식 고려
-            );
+                    file.getBytes());
         } catch (IOException e) {
-            log.error("이미지 바이트 읽기 실패", e);
+            throw new RuntimeException("이미지 바이트 읽기 실패", e);
         }
 
         return new ReviewPhotoUploadResponse(photo.getId(), photo.getFileUrl(), photo.getOrderIndex());
@@ -169,83 +121,6 @@ public class ReviewPhotoService {
                     item.getPhotoId(),
                     item.getOrderIndex(),
                     request.getPhotoGroupId());
-        }
-    }
-
-    public void analyzeTripContext(Long photoGroupId) {
-        long startedAt = System.nanoTime();
-
-        // 1. [DB 조회] 해당 그룹의 모든 사진 요약 가져오기 (리스트로 반환됨)
-        // for문 필요 없음! MyBatis가 List로 줍니다.
-        List<String> summaryList = reviewPhotoDao.selectPhotoSummariesByPhotoGroupId(photoGroupId);
-
-        // 요약된 사진이 하나도 없으면 분석 중단
-        if (summaryList.isEmpty())
-            return;
-
-        // 2. [DTO 포장] LLM에게 보낼 요청 객체 생성
-        ReviewPhotosAnalysisRequest requestDto = new ReviewPhotosAnalysisRequest();
-        requestDto.setPhotoGroupId(photoGroupId);
-        requestDto.setSummaries(summaryList); // DB에서 가져온 리스트를 바로 넣음
-
-        try {
-            // 3. [LLM 호출] 에이전트에게 DTO를 넘김
-            // 에이전트 코드는 아래 3단계에서 설명
-            PhotoAnalysisResult result = reviewImageAnalysisAgent.analyzeTripContext(requestDto.getSummaries());
-
-            reviewPostDao.updateReviewPostMood(photoGroupId, result.getOverallMood(), result.getTravelType());
-
-            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.info("{}", ReviewAiLog.success(
-                    ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
-                    null,
-                    null,
-                    photoGroupId,
-                    null,
-                    null,
-                    elapsedMs));
-        } catch (Exception e) {
-            // AI 실패(외부 API 오류·JSON 파싱 실패) 시 빈 무드를 저장하지 않고
-            // fail 로그를 남긴 뒤 호출자에게 전파한다.
-            long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
-            log.error("{}", ReviewAiLog.fail(
-                    ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
-                    null,
-                    null,
-                    photoGroupId,
-                    null,
-                    elapsedMs,
-                    e), e);
-            throw new RuntimeException(e);
-        }
-
-    }
-
-    @Transactional
-    public void selectStyle(Long reviewPostId, Long reviewStyleId) {
-        log.info("리뷰 스타일 선택 업데이트 - reviewPostId: {}, reviewStyleId: {}", reviewPostId, reviewStyleId);
-
-        // DAO 호출하여 업데이트 수행
-        reviewPostDao.updateReviewPostStyleIdById(reviewPostId, reviewStyleId);
-    }
-
-    @Transactional
-    public void updateCaption(Long reviewPostId, String caption){
-        log.info("리뷰 캡션 업데이트 - reviewPostId: {}, caption: {}", reviewPostId, caption);
-
-        reviewPostDao.updateReviewPostCaptionIdById(reviewPostId, caption);
-    }
-
-    @Transactional
-    public void updateHashtags(Long hashtagGroupId, List<String> names){
-
-        // 1. 기존 태그들 삭제 (초기화)
-        reviewHashtagDao.deleteHashtagsByHashtagGroupId(hashtagGroupId);
-
-        // 2. 선택된 태그가 있을 때만 insert 수행
-        // (사용자가 태그를 다 지워서 빈 리스트가 올 수도 있으므로 체크)
-        if (names != null && !names.isEmpty()) {
-            reviewHashtagDao.insertHashtagList(hashtagGroupId, names);
         }
     }
 }
