@@ -107,9 +107,15 @@
               <div v-if="isAnalyzing" class="alert alert-info mt-3 d-flex align-items-center">
                 <div class="spinner-border spinner-border-sm me-2"></div>
                 <div>
-                  <strong>AI가 사진을 분석하고 있어요... ({{ analyzedCount }}/{{ totalCount }})</strong>
+                  <strong>AI가 사진을 분석하고 있어요... ({{ settledCount }}/{{ totalCount }})</strong>
                   <span class="small ms-1">잠시만 기다려주세요.</span>
           </div>
+        </div>
+
+        <!-- 분석 실패 안내 -->
+        <div v-if="!isAnalyzing && failedCount > 0" class="alert alert-warning mt-3">
+          <strong>사진 {{ failedCount }}장의 AI 분석에 실패했어요.</strong>
+          <span class="small ms-1">실패한 사진을 다시 분석해야 다음 단계로 넘어갈 수 있어요.</span>
         </div>
 
         <!-- 하단 네비게이션 -->
@@ -146,11 +152,15 @@ const planTitle = route.params.planTitle || '나의 여행'
 const uploadedImages = ref([])
 const pollingInterval = ref(null)
 
-/* 파생 상태: 전부 uploadedImages의 각 img.isAnalyzed(원본)에서 계산 */
+/* 파생 상태: 각 img.status(서버 AI 분석 상태)에서 계산
+   status: undefined(업로드 직후) / 'PENDING' / 'SUCCESS' / 'FAILED' */
 const totalCount    = computed(() => uploadedImages.value.length)
-const analyzedCount = computed(() => uploadedImages.value.filter(i => i.isAnalyzed).length)
-const allAnalyzed   = computed(() => totalCount.value > 0 && analyzedCount.value === totalCount.value)
-const isAnalyzing   = computed(() => totalCount.value > 0 && analyzedCount.value <  totalCount.value)
+// 종료(settled) = SUCCESS 또는 FAILED. 더 이상 안 바뀌므로 폴링 멈춤 기준
+const settledCount  = computed(() => uploadedImages.value.filter(i => i.status === 'SUCCESS' || i.status === 'FAILED').length)
+const successCount  = computed(() => uploadedImages.value.filter(i => i.status === 'SUCCESS').length)
+const failedCount   = computed(() => uploadedImages.value.filter(i => i.status === 'FAILED').length)
+const allSettled    = computed(() => totalCount.value > 0 && settledCount.value === totalCount.value)
+const isAnalyzing   = computed(() => totalCount.value > 0 && !allSettled.value)
 const isReady = ref(false)
 const currentplanInfo = ref(null)
 const isItineraryOpen = ref(false)
@@ -245,14 +255,14 @@ const checkAnalysisStatus = async () => {
 
   uploadedImages.value.forEach(img => {
     const match = serverPhotos.find(s => String(s.id) === String(img.id))
-    if (match?.summary) {
-      img.isAnalyzed = true
-      img.summary = match.summary
+    if (match) {
+      img.status = match.status   // PENDING / SUCCESS / FAILED
+      img.summary = match.summary // 성공 시 채워짐, 실패 시 null
     }
   })
 
-  // 전부 끝났으면 폴링 정지 (isAnalyzing/canProceed는 computed라 자동 갱신됨)
-  if (allAnalyzed.value) stopPolling()
+  // 전부 종료(SUCCESS/FAILED)면 폴링 정지 — summary가 아니라 status로 판정해 무한루프 방지
+  if (allSettled.value) stopPolling()
 }
 
 const startPolling = () => {
@@ -268,7 +278,8 @@ const stopPolling = () => {
 
 onUnmounted(stopPolling)
 
-const canProceed = computed(() => allAnalyzed.value)
+// 진행 가능 = 전부 SUCCESS. 하나라도 FAILED/PENDING이면 막기 (정책: 부분 실패 = 막고 재시도)
+const canProceed = computed(() => totalCount.value > 0 && successCount.value === totalCount.value)
 
 const scrollToUploader = () => {
   document.querySelector('.uploader-anchor')?.scrollIntoView({ behavior: 'smooth' })
