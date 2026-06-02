@@ -104,7 +104,22 @@ tasks.withType(JavaExec).configureEach {
 }
 
 tasks.named('test') {
-	useJUnitPlatform()
+	// 기본 test는 단위 테스트만 — 실 자격증명/네트워크가 필요한 integration 태그는 제외
+	useJUnitPlatform {
+		excludeTags 'integration'
+	}
+	systemProperty 'file.encoding', 'UTF-8'
+	systemProperty 'sun.stdout.encoding', 'UTF-8'
+	systemProperty 'sun.stderr.encoding', 'UTF-8'
+}
+
+// 실 S3 등 외부 연동 검증용 — 수동 실행: ./gradlew integrationTest
+tasks.register('integrationTest', Test) {
+	useJUnitPlatform {
+		includeTags 'integration'
+	}
+	testClassesDirs = sourceSets.test.output.classesDirs
+	classpath = sourceSets.test.runtimeClasspath
 	systemProperty 'file.encoding', 'UTF-8'
 	systemProperty 'sun.stdout.encoding', 'UTF-8'
 	systemProperty 'sun.stderr.encoding', 'UTF-8'
