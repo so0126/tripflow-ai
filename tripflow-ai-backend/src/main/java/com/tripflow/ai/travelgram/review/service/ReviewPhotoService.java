@@ -114,6 +114,42 @@ public class ReviewPhotoService {
         return reviewPhotoDao.selectReviewPhotosByPhotoGroupId(photoGroupId);
     }
 
+    /**
+     * FAILED 사진을 개별 재분석한다.
+     * 사진 조회 → S3 원본 다운로드 → status=PENDING 리셋 → analyzePhotoAndUpdateDb 재호출.
+     *
+     * 순서 주의: PENDING 리셋을 다운로드보다 먼저 하면, 다운로드 실패 시 사진이 PENDING에
+     * 영영 갇혀 폴링이 다시 무한루프에 빠진다. 그래서 다운로드 성공을 확인한 뒤 PENDING으로 바꾼다.
+     */
+    public void reanalyzePhoto(Long photoId) {
+        ReviewPhoto photo = reviewPhotoDao.selectReviewPhotoById(photoId);
+        if (photo == null) {
+            throw new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다: photoId=" + photoId);
+        }
+
+        // 1) S3에서 원본 재사용 (실패하면 여기서 던져지고 status는 기존 FAILED로 유지)
+        byte[] imageBytes = s3Service.downloadFile(photo.getFileUrl());
+        String contentType = resolveContentType(photo.getFileUrl());
+
+        // 2) 폴링이 다시 "진행 중"으로 보이도록 PENDING 리셋
+        reviewPhotoDao.updatePhotoStatus(photoId, "PENDING");
+
+        // 3) 별도 빈(@Async)으로 재분석 트리거 → 성공/실패가 다시 status에 기록됨
+        reviewAnalysisService.analyzePhotoAndUpdateDb(photoId, contentType, imageBytes);
+    }
+
+    /**
+     * fileUrl 확장자로 contentType을 추론한다. (ReviewPhoto에 contentType 컬럼이 없으므로)
+     * 업로드 시 JPG/PNG만 허용하므로 png 외에는 jpeg로 본다.
+     */
+    private String resolveContentType(String fileUrl) {
+        String lower = fileUrl.toLowerCase();
+        if (lower.endsWith(".png")) {
+            return "image/png";
+        }
+        return "image/jpeg";
+    }
+
     @Transactional
     public void updatePhotoOrder(ReviewPhotoOrderUpdateRequest request) {
         for (PhotoOrderItem item : request.getPhotos()) {
