@@ -32,7 +32,7 @@ public class ReviewImageAnalysisAgent {
     // 1. 시스템 프롬프트: 여행스타그램 리뷰어 페르소나 부여
     SystemMessage systemMessage = new SystemMessage(
         """
-            목표: 사진을 분석해 정확한 사실 기반 한국어 한 문장 요약을 생성한다.
+            목표: 사용자 사진을 분석해 정확한 사실 기반 한국어 한 문장 요약을 생성한다.
 
               ### 작업 내용
               - 명확히 보이는 사람 수도 문장에 포함한다.
@@ -54,6 +54,7 @@ public class ReviewImageAnalysisAgent {
 
     // 3. 사용자 메시지 (이미지 포함)
     UserMessage userMessage = UserMessage.builder()
+        .text("사용자의 사진입니다.")
         .media(media)
         .build();
 
