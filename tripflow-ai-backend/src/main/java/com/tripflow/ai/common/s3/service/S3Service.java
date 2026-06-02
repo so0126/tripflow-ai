@@ -11,6 +11,7 @@ import org.springframework.web.multipart.MultipartFile;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
+import com.amazonaws.services.s3.model.S3Object;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -74,4 +75,20 @@ public class S3Service {
         log.error("Error deleting file from S3: " + fileUrl, e);
     }
 }
+
+    /**
+     * S3에 저장된 파일을 바이트 배열로 다운로드한다. (사진 재분석 시 원본 재사용)
+     * key 추출은 deleteFile과 동일한 규칙(.com/ 이후)을 재사용한다.
+     */
+    public byte[] downloadFile(String fileUrl) {
+        String splitStr = ".com/";
+        String key = fileUrl.substring(fileUrl.lastIndexOf(splitStr) + splitStr.length());
+
+        // try-with-resources로 S3Object(및 내부 스트림)를 반드시 닫는다 (커넥션 누수 방지)
+        try (S3Object s3Object = amazonS3.getObject(bucket, key)) {
+            return s3Object.getObjectContent().readAllBytes();
+        } catch (IOException e) {
+            throw new RuntimeException("S3 download failed: " + fileUrl, e);
+        }
+    }
 }
