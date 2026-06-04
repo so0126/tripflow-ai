@@ -1,5 +1,5 @@
 <template>
-  <TravelgramHeader />
+  <TravelgramHeader :back-route="{ name: 'CreateTravelReview' }" />
 
   <!-- ================= Page Layout ================= -->
   <div class="travelgram-page">

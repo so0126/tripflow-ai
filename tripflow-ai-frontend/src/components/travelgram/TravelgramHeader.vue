@@ -6,13 +6,14 @@
         class="btn btn-link p-0 back-button"
         type="button"
         title="뒤로 가기"
+        aria-label="뒤로 가기"
         @click="goBack"
       >
-        <i class="bi bi-arrow-left-short fs-1"></i>
+        <i class="bi bi-arrow-left-short fs-1" aria-hidden="true"></i>
       </button>
 
       <div class="travelgram-icon rounded-3 bg-secondary-subtle d-flex align-items-center justify-content-center">
-        {{ icon }}
+        <span aria-hidden="true">{{ icon }}</span>
       </div>
 
       <div>
@@ -28,7 +29,7 @@
 <script setup>
 import { useRouter } from 'vue-router'
 
-defineProps({
+const props = defineProps({
   showBack: {
     type: Boolean,
     default: true
@@ -44,12 +45,21 @@ defineProps({
   icon: {
     type: String,
     default: '💖'
+  },
+  backRoute: {
+    type: [String, Object],
+    default: null
   }
 })
 
 const router = useRouter()
 
 const goBack = () => {
+  if (props.backRoute) {
+    router.push(props.backRoute)
+    return
+  }
+
   router.back()
 }
 

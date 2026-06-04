@@ -1,5 +1,5 @@
 <template>
-  <TravelgramHeader />
+  <TravelgramHeader :back-route="{ name: 'EditPage' }" />
 <div class="travelgram-page">
       <div class="page-inner">
     <section class="preview-section">

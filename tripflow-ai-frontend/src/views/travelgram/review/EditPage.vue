@@ -1,5 +1,5 @@
 <template>
-  <TravelgramHeader />
+  <TravelgramHeader :back-route="{ name: 'HashtagSelect' }" />
 <div class="travelgram-page">
       <div class="page-inner">
 

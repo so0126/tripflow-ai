@@ -1,5 +1,5 @@
 <template>
-  <TravelgramHeader />
+  <TravelgramHeader :back-route="{ name: 'PhotoOrder' }" />
     <div class="travelgram-page">
       <div class="page-inner">
 

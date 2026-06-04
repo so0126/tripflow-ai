@@ -1,5 +1,5 @@
 <template>
-  <TravelgramHeader />
+  <TravelgramHeader :back-route="{ name: 'CaptionSelect' }" />
 
     
 <div class="travelgram-page">
