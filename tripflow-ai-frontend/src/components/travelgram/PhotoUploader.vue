@@ -24,10 +24,17 @@
 
       <div v-if="images.length" class="preview-grid mt-3">
         <div v-for="(img, idx) in images" :key="img.id || idx" class="preview-item">
-          <img :src="img.url" :alt="img.name" :class="{ 'opacity-50': img.uploading }" />
-          
+          <img :src="img.url" :alt="img.name" :class="{ 'opacity-50': img.uploading || img.status === 'FAILED' }" />
+
           <div v-if="img.uploading" class="upload-spinner">
             <div class="spinner-border spinner-border-sm text-primary" role="status"></div>
+          </div>
+
+          <div v-if="img.status === 'FAILED'" class="failed-overlay">
+            <span class="failed-badge">분석 실패</span>
+            <button class="retry-btn" title="다시 분석" @click.stop="emit('reanalyze', img.id)">
+              <i class="bi bi-arrow-clockwise"></i>
+            </button>
           </div>
         </div>
       </div>
@@ -51,7 +58,7 @@ const props = defineProps({
 
 
 // Emits 정의
-const emit = defineEmits(['update:modelValue', 'upload-started'])
+const emit = defineEmits(['update:modelValue', 'upload-started', 'reanalyze'])
 
 // Props 반응형 연결
 const images = toRef(props, 'modelValue')
@@ -187,5 +194,41 @@ const uploadPhotos = async (files, photoGroupId, startOrderIndex) => {
   width: 100%;
   height: 100%;
   object-fit: cover;
+}
+.failed-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(220, 38, 38, 0.45);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  border-radius: 0.75rem;
+}
+.failed-badge {
+  font-size: 0.6rem;
+  font-weight: 700;
+  color: #fff;
+  background: rgba(0,0,0,0.5);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+.retry-btn {
+  background: #fff;
+  border: none;
+  border-radius: 50%;
+  width: 26px;
+  height: 26px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 0.85rem;
+  color: #dc2626;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+}
+.retry-btn:hover {
+  background: #fee2e2;
 }
 </style>
