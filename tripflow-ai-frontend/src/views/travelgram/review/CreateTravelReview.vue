@@ -100,7 +100,7 @@
              <div class="uploader-anchor"></div>
              <div class="upload-section">
                <PhotoUploader v-model="uploadedImages" :is-ready="isReady" :photo-group-id="reviewStore.photoGroupId"
-               :max-count="10" @upload-started="startPolling" />
+               :max-count="10" @upload-started="startPolling" @reanalyze="handleReanalyze" />
               </div>
               
               <!-- AI 분석 상태 -->
@@ -268,6 +268,19 @@ const checkAnalysisStatus = async () => {
 const startPolling = () => {
   if (pollingInterval.value) return
   pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
+}
+
+const handleReanalyze = async (photoId) => {
+  const img = uploadedImages.value.find(i => String(i.id) === String(photoId))
+  if (img) img.status = 'PENDING'
+  try {
+    await api.reanalyzePhoto(photoId)
+    startPolling()
+  } catch (e) {
+    console.error('재분석 요청 실패:', e)
+    alert('재분석 요청에 실패했습니다.')
+    if (img) img.status = 'FAILED'
+  }
 }
 const stopPolling = () => {
   if (pollingInterval.value) {

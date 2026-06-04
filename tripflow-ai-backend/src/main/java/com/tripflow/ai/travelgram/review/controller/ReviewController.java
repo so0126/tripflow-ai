@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -113,6 +114,16 @@ public class ReviewController {
     public ResponseEntity<Void> updateCaption(@RequestParam("reviewPostId") Long reviewPostId,
             @RequestParam("caption") String caption) {
         reviewPostService.updateCaption(reviewPostId, caption);
+        return ResponseEntity.ok().build();
+    }
+
+    // ======================================
+    // 3) 사진 재분석 영역
+    // ======================================
+
+    @PostMapping("/photo/{photoId}/reanalyze")
+    public ResponseEntity<Void> reanalyzePhoto(@PathVariable("photoId") Long photoId) {
+        reviewPhotoService.reanalyzePhoto(photoId);
         return ResponseEntity.ok().build();
     }
 

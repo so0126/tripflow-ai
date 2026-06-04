@@ -73,6 +73,9 @@ const updateCaption = async(reviewPostId, caption)=>{
 const createHashtags = async(payload)=>{
   return api.post('/reviews/hashtags/create',payload)
 }
+const reanalyzePhoto = async(photoId) => {
+  return api.post(`/reviews/photo/${photoId}/reanalyze`)
+}
 export default {
     getAllPlanByUserId,
     getPlanDetail,
@@ -85,5 +88,6 @@ export default {
     generateAiStyles,
     selectStyle,
     updateCaption,
-    createHashtags
+    createHashtags,
+    reanalyzePhoto
 };
