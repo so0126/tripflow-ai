@@ -43,11 +43,11 @@
 - [x] A — 백엔드 상태 기록 (schema status 컬럼+CHECK, ReviewPhoto.status, mapper select/updatePhotoSummary(=SUCCESS)/updatePhotoStatus, dao, agent 예외전파, ReviewPhotoAnalysisService catch→FAILED). compileJava 통과.
   - [x] A+ 결과값 검증: agent가 null/공백/"{}"/한글없음(영어 거절문 등)을 반환하면 예외→catch→FAILED. `isUsableKoreanSummary`(UnicodeScript.HANGUL). 테스트 `ReviewPhotoAnalysisServiceTest`(예외/성공/무효값 파라미터라이즈드) green.
 - [x] B — 프론트 폴링 전환 + 차단 (CreateTravelReview.vue: 파생상태 status 기반(settled/success/failed), 폴링 종료=allSettled, canProceed=전부 SUCCESS, FAILED 안내 alert). summary 의존 제거.
-- [~] C — 재시도 (서비스/S3 완료, 컨트롤러·프론트 잔여)
+- [x] C — 재시도 완료
   - [x] `S3Service.downloadFile(fileUrl)→byte[]` (deleteFile key추출 재사용, try-with-resources). 테스트 `S3ServiceTest` green.
   - [x] `ReviewPhotoService.reanalyzePhoto(photoId)`: 조회→**다운로드→PENDING 리셋→async 재호출** 순서(PENDING 먼저 찍고 다운로드 실패하면 무한루프 재발하므로 순서 주의). contentType=확장자 추론(png 외 jpeg). 없는 photoId→IllegalArgumentException. 테스트 `ReviewPhotoServiceReanalyzeTest` green.
-  - [ ] 컨트롤러 `POST /reviews/photo/{photoId}/reanalyze` (IllegalArgumentException→404 매핑 확인 필요)
-  - [ ] 프론트: FAILED 사진 재시도 버튼(PhotoUploader)→재분석 호출→재폴링
+  - [x] 컨트롤러 `POST /reviews/photo/{photoId}/reanalyze`. IllegalArgumentException→GlobalExceptionHandler 404 자동 매핑.
+  - [x] 프론트: FAILED 사진 빨간 오버레이+재시도 버튼(↺, PhotoUploader) → `reanalyze` emit → `handleReanalyze`(status PENDING 리셋→API 호출→폴링 재개).
   - [ ] (보류) "FAILED만 재분석 허용" 가드 — 현재는 SUCCESS/PENDING도 재분석됨. 컨트롤러 권한체크와 함께 결정.
 
 ## 테스트 인프라
