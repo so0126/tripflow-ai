@@ -12,6 +12,27 @@
     <select id="selectReviewPostById" resultType="ReviewPost"> SELECT * FROM review_posts WHERE id =
         #{id}; </select>
 
+
+        <!-- 재진입(새로고침/뒤로가기) 시 재사용할 미게시 draft 1건.
+         is_posted IS NOT TRUE → 게시 완료분은 제외(plan당 리뷰 여러 개 허용),
+         혹시 모를 null 행까지 포함. 중복 draft가 있으면 가장 최근 것 사용. -->
+    <resultMap id="reviewCreateResponseMap"
+        type="com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse">
+        <constructor>
+            <idArg column="id" javaType="java.lang.Long" />
+            <arg column="photo_group_id" javaType="java.lang.Long" />
+            <arg column="hashtag_group_id" javaType="java.lang.Long" />
+        </constructor>
+    </resultMap>
+
+    <select id="selectDraftByPlanId" resultMap="reviewCreateResponseMap">
+        SELECT id, photo_group_id, hashtag_group_id
+        FROM review_posts
+        WHERE plan_id = #{planId} AND is_posted IS NOT TRUE
+        ORDER BY created_at DESC
+        LIMIT 1
+    </select>
+
     <select id="selectReviewPostsByPlanId" resultType="ReviewPost"> SELECT * FROM review_posts WHERE
         plan_id = #{planId}; </select>
 

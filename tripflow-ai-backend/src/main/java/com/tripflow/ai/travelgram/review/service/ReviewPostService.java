@@ -32,6 +32,14 @@ public class ReviewPostService {
 
     @Transactional
     public ReviewCreateResponse createReview(Long planId) {
+        // 멱등 처리: 같은 plan으로 재진입(새로고침/뒤로가기)해도 빈 draft가 쌓이지 않도록,
+        // 아직 게시되지 않은 draft가 있으면 그대로 재사용한다.
+        // (게시 완료분은 selectDraftByPlanId에서 제외되므로 plan당 리뷰는 여러 번 작성 가능)
+        ReviewCreateResponse existingDraft = reviewPostDao.selectDraftByPlanId(planId);
+        if (existingDraft != null) {
+            return existingDraft;
+        }
+
         ReviewPost post = ReviewPost.builder()
                 .planId(planId)
                 .build();
