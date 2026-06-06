@@ -76,22 +76,22 @@
     </div>
 
     <!-- ================= Loading Overlay ================= -->
-    <div v-if="isLoading" class="loading-overlay">
-      <div class="loading-content">
-        <div class="spinner-border text-primary mb-3"></div>
-        <h5>사진 요약을 모아서 분석 중 입니다.</h5>
-        <p>여행의 분위기를 감지하고 있습니다...</p>
-      </div>
-    </div>
+    <ReviewLoadingState
+      v-if="isLoading"
+      mode="overlay"
+      title="사진 요약을 모아서 분석 중 입니다."
+      description="여행의 분위기를 감지하고 있습니다..."
+    />
 
     <!-- ================= Error Overlay ================= -->
-    <div v-if="hasError" class="error-overlay">
-      <div class="error-overlay-card">
-        <ErrorRetry @retry="goNext">
-          분석에 실패했어요.<br />잠시 후 다시 시도해 주세요.
-        </ErrorRetry>
-      </div>
-    </div>
+    <ReviewErrorState
+      v-if="hasError"
+      mode="overlay"
+      title="분석에 실패했어요."
+      description="잠시 후 다시 시도해 주세요."
+      retry-text="다시 시도"
+      @retry="goNext"
+    />
   </div>
 </template>
 
@@ -103,8 +103,9 @@ import api from '@/api/travelgramApi'
 
 import TipBox from '@/components/common/TipBox.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
-import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
 import { useReviewPhotoReorder } from '@/composables/travelgram/review/useReviewPhotoReorder'
+import ReviewLoadingState from '@/components/travelgram/review/ReviewLoadingState.vue'
+import ReviewErrorState from '@/components/travelgram/review/ReviewErrorState.vue'
 
 const router = useRouter()
 const reviewStore = useReviewStore()

@@ -104,30 +104,81 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
+import { computed, ref, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
 
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
-import { useReviewCaptionEditor } from '@/composables/travelgram/review/useReviewCaptionEditor'
 
 const route = useRoute()
 const router = useRouter()
 const reviewStore = useReviewStore()
-const {
-  photos,
-  caption,
-  selectedHashtags,
-  currentPhotoIndex,
-  isSaving,
-  canProceed,
-  captionByteLength,
-  prevPhoto,
-  nextPhoto,
-  scrollToPhoto,
-  goBack,
-  goNext,
-} = useReviewCaptionEditor({ reviewStore, api, route, router })
+
+const photos = computed(() => reviewStore.photos)
+const caption = ref(reviewStore.caption || '')
+const selectedHashtags = computed(() => reviewStore.selectedHashtags || [])
+const currentPhotoIndex = ref(0)
+const isSaving = ref(false)
+
+const canProceed = computed(() => photos.value && photos.value.length > 0 && !isSaving.value)
+
+const captionByteLength = computed(() => {
+  let total = 0
+  for (let index = 0; index < caption.value.length; index++) {
+    total += caption.value.charCodeAt(index) > 127 ? 2 : 1
+  }
+  return total
+})
+
+watch(caption, (val) => {
+  reviewStore.caption = val
+})
+
+const scrollToPhoto = () => {
+  const carousel = document.querySelector('.photo-carousel')
+  if (!carousel) return
+
+  const item = carousel.querySelector('.photo-item')
+  if (!item) return
+
+  const itemWidth = item.offsetWidth + 16
+  carousel.scrollLeft = currentPhotoIndex.value * itemWidth
+}
+
+const prevPhoto = () => {
+  if (currentPhotoIndex.value > 0) {
+    currentPhotoIndex.value--
+    scrollToPhoto()
+  }
+}
+
+const nextPhoto = () => {
+  if (currentPhotoIndex.value < photos.value.length - 1) {
+    currentPhotoIndex.value++
+    scrollToPhoto()
+  }
+}
+
+const goBack = () => router.push({ name: 'HashtagSelect' })
+
+const goNext = async () => {
+  isSaving.value = true
+  try {
+    reviewStore.setCaption(caption.value)
+    if (reviewStore.reviewPostId) {
+      await api.updateCaption(reviewStore.reviewPostId, caption.value)
+    }
+    router.push({
+      name: 'InstagramPreview',
+      params: { planId: route.params.planId },
+    })
+  } catch (error) {
+    alert('저장에 실패했습니다.')
+  } finally {
+    isSaving.value = false
+  }
+}
 </script>
 
 <style scoped>

@@ -22,15 +22,14 @@
 
       <div v-if="selectedCount > 0" class="tag-cloud-box selected-box">
         <div class="tag-list">
-          <button
+          <ReviewTagPill
             v-for="tagName in Array.from(selectedSet)"
             :key="'selected-' + tagName"
-            class="tag-pill selected pop"
+            variant="selected"
+            :selected="true"
+            :label="tagName"
             @click="toggleTag(tagName)"
-          >
-            <span class="hash">#</span>{{ tagName }}
-            <i class="bi bi-x-lg ms-1 small-icon"></i>
-          </button>
+          />
         </div>
       </div>
 
@@ -59,19 +58,14 @@
 
       <div class="tag-cloud-box">
         <div class="tag-list">
-          <button
+          <ReviewTagPill
             v-for="(tag, index) in aiTags"
             :key="'ai-' + index"
-            class="tag-pill"
-            :class="{ active: isSelected(tag.name), pop: isSelected(tag.name) }"
+            :variant="isSelected(tag.name) ? 'active' : 'default'"
+            :selected="isSelected(tag.name)"
+            :label="tag.name"
             @click="toggleTag(tag.name)"
-          >
-            <span class="hash">#</span>{{ tag.name }}
-            <i
-              v-if="isSelected(tag.name)"
-              class="bi bi-check-lg ms-1 small-icon"
-            ></i>
-          </button>
+          />
         </div>
 
         <p class="count-text">
@@ -99,6 +93,7 @@ import api from '@/api/travelgramApi'
 
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
 import { useReviewHashtagEditor } from '@/composables/travelgram/review/useReviewHashtagEditor'
+import ReviewTagPill from '@/components/travelgram/review/ReviewTagPill.vue'
 
 const router = useRouter()
 const reviewStore = useReviewStore()

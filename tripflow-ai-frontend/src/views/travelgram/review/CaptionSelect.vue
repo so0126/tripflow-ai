@@ -15,50 +15,38 @@
       </header>
 
       <!-- 로딩 -->
-      <IconSpinner
+      <ReviewLoadingState
         v-if="isLoading"
-        :steps="journeySteps"
-        text="AI가 여행 이야기를 한 장면씩 엮고 있어요…"
-      />
+        mode="inline"
+      >
+        <template #loading>
+          <IconSpinner
+            :steps="journeySteps"
+            text="AI가 여행 이야기를 한 장면씩 엮고 있어요…"
+          />
+        </template>
+      </ReviewLoadingState>
 
       <!-- 에러 -->
-      <ErrorRetry v-else-if="hasError" @retry="loadStyles">
-        AI 후기 생성에 실패했어요.<br />잠시 후 다시 시도해 주세요.
-      </ErrorRetry>
+      <ReviewErrorState
+        v-else-if="hasError"
+        mode="inline"
+        title="AI 후기 생성에 실패했어요."
+        description="잠시 후 다시 시도해 주세요."
+        retry-text="다시 시도"
+        @retry="loadStyles"
+      />
 
       <!-- 결과 -->
       <div v-else class="caption-list">
-        <div
+        <ReviewStyleCard
           v-for="(item, index) in reviewStore.generatedOptions"
           :key="index"
-          class="caption-card"
-          :class="{ active: selectedIndex === index }"
-          @click="selectStyle(index)"
-        >
-          <div class="caption-card-header">
-            <span
-              class="caption-label"
-              :class="getLabelClass(item.style.toneCode)"
-            >
-              {{ item.style.name }}
-            </span>
-
-            <i
-              v-if="selectedIndex === index"
-              class="bi bi-check-circle-fill checkmark"
-            ></i>
-          </div>
-
-          <p class="caption-text">
-            {{ item.style.caption }}
-          </p>
-
-          <div class="hashtag-preview">
-            <small class="text-muted">
-              {{ item.hashtags.map(h => '#' + h.name).slice(0, 3).join(' ') }}
-            </small>
-          </div>
-        </div>
+          :item="item"
+          :selected="selectedIndex === index"
+          :label-class="getLabelClass(item.style.toneCode)"
+          @select="selectStyle(index)"
+        />
       </div>
     </section>
 
@@ -86,8 +74,10 @@ import api from '@/api/travelgramApi'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
 import { journeySteps } from '@/constants/journeySubtitles'
 import IconSpinner from '@/components/common/spinner/IconSpinner.vue'
-import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
 import { useReviewStyleSelection } from '@/composables/travelgram/review/useReviewStyleSelection'
+import ReviewLoadingState from '@/components/travelgram/review/ReviewLoadingState.vue'
+import ReviewErrorState from '@/components/travelgram/review/ReviewErrorState.vue'
+import ReviewStyleCard from '@/components/travelgram/review/ReviewStyleCard.vue'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
