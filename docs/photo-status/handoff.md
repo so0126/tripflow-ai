@@ -48,7 +48,8 @@
   - [x] `ReviewPhotoService.reanalyzePhoto(photoId)`: 조회→**다운로드→PENDING 리셋→async 재호출** 순서(PENDING 먼저 찍고 다운로드 실패하면 무한루프 재발하므로 순서 주의). contentType=확장자 추론(png 외 jpeg). 없는 photoId→IllegalArgumentException. 테스트 `ReviewPhotoServiceReanalyzeTest` green.
   - [x] 컨트롤러 `POST /reviews/photo/{photoId}/reanalyze`. IllegalArgumentException→GlobalExceptionHandler 404 자동 매핑.
   - [x] 프론트: FAILED 사진 빨간 오버레이+재시도 버튼(↺, PhotoUploader) → `reanalyze` emit → `handleReanalyze`(status PENDING 리셋→API 호출→폴링 재개).
-  - [ ] (보류) "FAILED만 재분석 허용" 가드 — 현재는 SUCCESS/PENDING도 재분석됨. 컨트롤러 권한체크와 함께 결정.
+  - [x] "FAILED만 재분석 허용" 가드 — `reanalyzePhoto`에서 조회·null체크 직후(S3 다운로드 전) `status != FAILED`면 `IllegalStateException`. GlobalExceptionHandler에 `IllegalStateException → 409 Conflict` 핸들러 추가(리소스는 있으나 상태가 요청과 충돌하는 의미). `IllegalArgumentException→404`(없는 photoId)와 예외 타입으로 분리(문자열 분기 안 늘림). 테스트 `ReviewPhotoServiceReanalyzeTest`에 SUCCESS/PENDING 거부 + 다운로드/PENDING리셋/재분석 미호출 검증 추가(green).
+    - [x] 매핑 배선 검증: `ReviewControllerReanalyzeTest`(@WebMvcTest + @MockitoBean) — IllegalStateException→409 / IllegalArgumentException→404 / 성공→200이 실제 HTTP 상태로 나가는지 스모크(green, 3 tests).
 
 ## 테스트 인프라
 - 프론트: Vitest + @vue/test-utils + jsdom 도입(`vitest.config.js`, `npm test`/`test:run`). 스모크 `NavigationButtons.spec.js` green.

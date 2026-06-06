@@ -127,6 +127,16 @@ public class ReviewPhotoService {
             throw new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다: photoId=" + photoId);
         }
 
+        // FAILED 상태에서만 재시도 전이를 허용한다.
+        // - SUCCESS 재분석: 멀쩡한 결과를 날리고 OpenAI 비용만 낭비
+        // - PENDING 재분석: 이미 @Async로 도는 분석을 중복 트리거 → 같은 photoId에 분석이 경합하며 멱등성 깨짐
+        // 프론트가 FAILED 사진에만 버튼을 노출하지만, photoId로 직접 호출하면 우회되므로 서버에서도 막는다.
+        // ("FAILED".equals(...)는 status가 null이어도 안전하게 거부한다.)
+        if (!"FAILED".equals(photo.getStatus())) {
+            throw new IllegalStateException(
+                    "FAILED 상태 사진만 재분석할 수 있습니다: photoId=" + photoId + ", status=" + photo.getStatus());
+        }
+
         // 1) S3에서 원본 재사용 (실패하면 여기서 던져지고 status는 기존 FAILED로 유지)
         byte[] imageBytes = s3Service.downloadFile(photo.getFileUrl());
         String contentType = resolveContentType(photo.getFileUrl());

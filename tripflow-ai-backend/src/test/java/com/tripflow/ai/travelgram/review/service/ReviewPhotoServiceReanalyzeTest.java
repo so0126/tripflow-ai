@@ -1,13 +1,18 @@
 package com.tripflow.ai.travelgram.review.service;
 
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
+import static org.mockito.ArgumentMatchers.any;
 import static org.mockito.ArgumentMatchers.anyString;
 import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.never;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.params.ParameterizedTest;
+import org.junit.jupiter.params.provider.ValueSource;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
@@ -71,5 +76,28 @@ public class ReviewPhotoServiceReanalyzeTest {
         verify(reviewPhotoDao).updatePhotoStatus(PHOTO_ID, "PENDING");
         // then: 같은 photoId + S3에서 받은 원본 bytes로 재분석 재호출
         verify(reviewAnalysisService).analyzePhotoAndUpdateDb(eq(PHOTO_ID), anyString(), eq(bytes));
+    }
+
+    @ParameterizedTest(name = "status={0} 사진은 재분석이 거부된다")
+    @ValueSource(strings = { "SUCCESS", "PENDING" })
+    @DisplayName("FAILED가 아닌 사진은 IllegalStateException으로 거부하고 다운로드/재분석을 트리거하지 않는다")
+    public void reanalyzePhoto_rejectsWhenNotFailed(String status) {
+        // given: FAILED가 아닌 상태(정상 결과 or 분석 진행 중)
+        ReviewPhoto photo = ReviewPhoto.builder()
+                .id(PHOTO_ID)
+                .photoGroupId(7L)
+                .fileUrl(FILE_URL)
+                .status(status)
+                .build();
+        when(reviewPhotoDao.selectReviewPhotoById(PHOTO_ID)).thenReturn(photo);
+
+        // when / then: 상태 충돌로 거부 (컨트롤러단에서 409로 매핑됨)
+        assertThatThrownBy(() -> reviewPhotoService.reanalyzePhoto(PHOTO_ID))
+                .isInstanceOf(IllegalStateException.class);
+
+        // then: 거부 시 S3 다운로드도, PENDING 리셋도, 재분석도 일어나지 않는다
+        verify(s3Service, never()).downloadFile(anyString());
+        verify(reviewPhotoDao, never()).updatePhotoStatus(eq(PHOTO_ID), anyString());
+        verify(reviewAnalysisService, never()).analyzePhotoAndUpdateDb(any(), any(), any());
     }
 }
