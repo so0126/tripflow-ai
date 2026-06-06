@@ -94,6 +94,18 @@ public class GlobalExceptionHandler {
                         ErrorResponse.of("BUSINESS_ERROR", e.getMessage())));
     }
 
+    /* 상태 충돌 — 리소스는 있으나 현재 상태가 요청을 허용하지 않음 (예: FAILED 아닌 사진 재분석) */
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ResponseWrapper<?>> handleIllegalStateException(IllegalStateException e) {
+        log.warn("IllegalStateException: {}", e.getMessage());
+
+        return ResponseEntity
+                .status(HttpStatus.CONFLICT)
+                .body(ResponseWrapper.error(
+                        HttpStatus.CONFLICT,
+                        ErrorResponse.of("CONFLICT", e.getMessage())));
+    }
+
     /* 예상하지 못한 모든 예외 처리 */
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ResponseWrapper<?>> handleException(Exception e) {
