@@ -110,169 +110,96 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
-import { ref, computed, onMounted, onUnmounted } from 'vue'
-import { useRoute, useRouter } from 'vue-router'
+import { computed, onMounted, ref } from 'vue'
+import { useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
 
-import PageHeader from '@/components/common/header/PageHeader.vue'
-import StepHeader from '@/components/common/header/StepHeader.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
 import PhotoUploader from '@/components/travelgram/PhotoUploader.vue'
 import PlanDayTimeline from '@/components/planner/PlanDayTimeline.vue'
-import { JOURNEY_SUBTITLES } from '@/constants/journeySubtitles'
+import { useReviewBootstrap } from '@/composables/travelgram/review/useReviewBootstrap'
+import { useReviewPhotoPolling } from '@/composables/travelgram/review/useReviewPhotoPolling'
 
 const router = useRouter()
-const route = useRoute()
 const reviewStore = useReviewStore()
-
-const planId = route.params.planId
-const planTitle = route.params.planTitle || '나의 여행'
+const props = defineProps({
+  planId: {
+    type: [String, Number],
+    required: true,
+  },
+  planTitle: {
+    type: String,
+    default: '나의 여행',
+  },
+})
 
 const uploadedImages = ref([])
-const pollingInterval = ref(null)
-
-/* 파생 상태: 각 img.status(서버 AI 분석 상태)에서 계산
-   status: undefined(업로드 직후) / 'PENDING' / 'SUCCESS' / 'FAILED' */
-const totalCount    = computed(() => uploadedImages.value.length)
-// 종료(settled) = SUCCESS 또는 FAILED. 더 이상 안 바뀌므로 폴링 멈춤 기준
-const settledCount  = computed(() => uploadedImages.value.filter(i => i.status === 'SUCCESS' || i.status === 'FAILED').length)
-const successCount  = computed(() => uploadedImages.value.filter(i => i.status === 'SUCCESS').length)
-const failedCount   = computed(() => uploadedImages.value.filter(i => i.status === 'FAILED').length)
-const allSettled    = computed(() => totalCount.value > 0 && settledCount.value === totalCount.value)
-const isAnalyzing   = computed(() => totalCount.value > 0 && !allSettled.value)
-const isReady = ref(false)
-const currentplanInfo = ref(null)
 const isItineraryOpen = ref(false)
-// [추가] 선택된 Day 인덱스
 const selectedDayIndex = ref(0)
 
-// [추가] 선택된 Day에 해당하는 장소 목록 계산
+const { currentPlanInfo: currentplanInfo, isReady, createReviewSession } = useReviewBootstrap({
+  reviewStore,
+  api,
+  planId: props.planId,
+  planTitle: props.planTitle,
+})
+
+const {
+  totalCount,
+  settledCount,
+  failedCount,
+  isAnalyzing,
+  canProceed,
+  startPolling,
+  handleReanalyze,
+} = useReviewPhotoPolling({
+  reviewStore,
+  api,
+  uploadedImages,
+})
+
 const currentDayPlaces = computed(() => {
   if (!currentplanInfo.value?.itinerary) return []
   return currentplanInfo.value.itinerary[selectedDayIndex.value]?.places || []
 })
 
-const stepSubtitle = computed(() => JOURNEY_SUBTITLES[1])
-/* ---------- 일정 헬퍼 ---------- */
+const hasPhotos = computed(() => uploadedImages.value.length > 0)
+
 const categoryMap = {
-  FOOD: "음식점",
-  SPOT: "관광지",
-  SHOPPING: "쇼핑",
-  CAFE: "카페",
-  HOTEL: "숙소",
-  EVENT: "이벤트",
-  ETC: "기타",
-  ATTRACTION: "관광지",
-  RESTAURANT: "음식점",
-  ACCOMMODATION: "숙소"
+  FOOD: '음식점',
+  SPOT: '관광지',
+  SHOPPING: '쇼핑',
+  CAFE: '카페',
+  HOTEL: '숙소',
+  EVENT: '이벤트',
+  ETC: '기타',
+  ATTRACTION: '관광지',
+  RESTAURANT: '음식점',
+  ACCOMMODATION: '숙소',
 }
 
 const getTypeColor = (type) => {
   const t = type?.toUpperCase()
-  if (["FOOD", "RESTAURANT"].includes(t)) return "color-red"
-  if (t === "SHOPPING") return "color-blue"
-  if (t === "CAFE") return "color-green"
-  if (["HOTEL", "ACCOMMODATION"].includes(t)) return "color-gray"
-  return "color-purple"
+  if (['FOOD', 'RESTAURANT'].includes(t)) return 'color-red'
+  if (t === 'SHOPPING') return 'color-blue'
+  if (t === 'CAFE') return 'color-green'
+  if (['HOTEL', 'ACCOMMODATION'].includes(t)) return 'color-gray'
+  return 'color-purple'
 }
 
 const getTypeLabel = (type) => {
   const t = type?.toUpperCase()
-  if (["FOOD", "RESTAURANT"].includes(t)) return "식사"
-  if (t === "SHOPPING") return "쇼핑"
-  if (t === "CAFE") return "카페"
-  if (["HOTEL", "ACCOMMODATION"].includes(t)) return "숙소"
-  if (["SPOT", "ATTRACTION"].includes(t)) return "관광"
+  if (['FOOD', 'RESTAURANT'].includes(t)) return '식사'
+  if (t === 'SHOPPING') return '쇼핑'
+  if (t === 'CAFE') return '카페'
+  if (['HOTEL', 'ACCOMMODATION'].includes(t)) return '숙소'
+  if (['SPOT', 'ATTRACTION'].includes(t)) return '관광'
   return null
 }
 
-const formatTime = (iso) => iso ? iso.substring(11, 16) : ''
-const handleOpenModal = () => { }
-
-/* ---------- 데이터 ---------- */
-const fetchPlanDetail = async () => {
-  const res = await api.getPlanDetail(planId)
-  const data = res.data
-
-  const rawBudget = Number(data.plan.budget || 0)
-
-  currentplanInfo.value = {
-    location: data.days?.[0]?.places?.[0]?.address?.split(' ').slice(0, 2).join(' ') || 'Seoul',
-    date: `${data.plan.startDate} ~ ${data.plan.endDate}`,
-    rawCost: rawBudget,
-    cost: rawBudget.toLocaleString(),
-    itinerary: data.days.map(d => ({
-      dayNumber: d.day.dayIndex,
-      title: d.day.title,
-      date: d.day.planDate,
-      places: d.places.map(p => ({
-        title: p.placeName,
-        startAt: p.startAt,
-        details: {
-          type: p.placeType || 'ETC',
-          desc: p.description,
-          gallery: p.firstImage2 ? [p.firstImage2] : [],
-          address: p.address
-        }
-      }))
-    }))
-  }
-}
-
-/* ---------- 라이프사이클 ---------- */
-onMounted(async () => {
-  reviewStore.setplanInfo(planId, planTitle)
-  await fetchPlanDetail()
-  const res = await api.createReview(planId)
-  reviewStore.setReviewInfo(res.data.reviewPostId, res.data.photoGroupId, res.data.hashtagGroupId)
-  isReady.value = true
-})
-
-const checkAnalysisStatus = async () => {
-  const res = await api.getReviewPhotos(reviewStore.photoGroupId)
-  const serverPhotos = res.data.data || []
-
-  uploadedImages.value.forEach(img => {
-    const match = serverPhotos.find(s => String(s.id) === String(img.id))
-    if (match) {
-      img.status = match.status   // PENDING / SUCCESS / FAILED
-      img.summary = match.summary // 성공 시 채워짐, 실패 시 null
-    }
-  })
-
-  // 전부 종료(SUCCESS/FAILED)면 폴링 정지 — summary가 아니라 status로 판정해 무한루프 방지
-  if (allSettled.value) stopPolling()
-}
-
-const startPolling = () => {
-  if (pollingInterval.value) return
-  pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
-}
-
-const handleReanalyze = async (photoId) => {
-  const img = uploadedImages.value.find(i => String(i.id) === String(photoId))
-  if (img) img.status = 'PENDING'
-  try {
-    await api.reanalyzePhoto(photoId)
-    startPolling()
-  } catch (e) {
-    console.error('재분석 요청 실패:', e)
-    alert('재분석 요청에 실패했습니다.')
-    if (img) img.status = 'FAILED'
-  }
-}
-const stopPolling = () => {
-  if (pollingInterval.value) {
-    clearInterval(pollingInterval.value)
-    pollingInterval.value = null
-  }
-}
-
-onUnmounted(stopPolling)
-
-// 진행 가능 = 전부 SUCCESS. 하나라도 FAILED/PENDING이면 막기 (정책: 부분 실패 = 막고 재시도)
-const canProceed = computed(() => totalCount.value > 0 && successCount.value === totalCount.value)
+const formatTime = (iso) => (iso ? iso.substring(11, 16) : '')
+const handleOpenModal = () => {}
 
 const scrollToUploader = () => {
   document.querySelector('.uploader-anchor')?.scrollIntoView({ behavior: 'smooth' })
@@ -281,19 +208,14 @@ const scrollToUploader = () => {
 const goNext = () => {
   reviewStore.setPhotos(uploadedImages.value)
   reviewStore.nextStep()
-  router.push({ name: 'PhotoOrder', params: { planId } })
+  router.push({ name: 'PhotoOrder', params: { planId: props.planId } })
 }
-const props = defineProps({
-  planId: {
-    type: [String, Number],
-    required: true
-  }
-})
 
 const goBack = () => router.push({ name: 'Travelgram' })
 
-const hasPhotos = computed(() => uploadedImages.value.length > 0)
-
+onMounted(async () => {
+  await createReviewSession()
+})
 </script>
 
 <style scoped>

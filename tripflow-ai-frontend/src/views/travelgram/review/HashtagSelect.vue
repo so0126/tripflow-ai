@@ -93,87 +93,26 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
-import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
 
-import StepHeader from '@/components/common/header/StepHeader.vue'
-import PageHeader from '@/components/common/header/PageHeader.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
-import { JOURNEY_SUBTITLES } from '@/constants/journeySubtitles'
+import { useReviewHashtagEditor } from '@/composables/travelgram/review/useReviewHashtagEditor'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
-
-const stepSubtitle = computed(() => JOURNEY_SUBTITLES[4])
-const props = defineProps({
-  planId: {
-    type: [String, Number],
-    required: true
-  }
-})
-
-/* 🔵 AI 추천 태그 (고정) */
-const aiTags = ref([])
-
-/* 🟠 선택된 태그 */
-const selectedSet = ref(new Set())
-
-const newTagInput = ref('')
-const selectedCount = computed(() => selectedSet.value.size)
-
-/* 초기화 */
-onMounted(() => {
-  aiTags.value = reviewStore.aiHashtags || []
-
-  const selected = reviewStore.selectedHashtags || []
-  selectedSet.value.clear()
-  selected.forEach(t => selectedSet.value.add(t.name))
-})
-
-/* 태그 로직 */
-const isSelected = (name) => selectedSet.value.has(name)
-
-const toggleTag = (name) => {
-  if (selectedSet.value.has(name)) {
-    selectedSet.value.delete(name)
-  } else {
-    selectedSet.value.add(name)
-  }
-}
-
-/* 커스텀 태그 → 선택 영역에만 추가 */
-const addCustomTag = () => {
-  const val = newTagInput.value.trim()
-  if (!val) return
-
-  const clean = val.replace(/^#/, '')
-  selectedSet.value.add(clean)
-  newTagInput.value = ''
-}
-
-/* 네비게이션 */
-const goBack = () => router.push({ name: 'CaptionSelect' })
-
-const goNext = async () => {
-  try {
-    const finalTags = Array.from(selectedSet.value).map(name => ({ name }))
-
-    reviewStore.selectedHashtags = finalTags
-
-    await api.createHashtags({
-      hashtagGroupId: reviewStore.hashtagGroupId,
-      names: finalTags.map(t => t.name)
-    })
-
-    reviewStore.nextStep()
-    router.push({ name: 'EditPage' })
-  } catch (e) {
-    console.error(e)
-    alert('해시태그 저장에 실패했습니다.')
-  }
-}
+const {
+  aiTags,
+  selectedSet,
+  newTagInput,
+  selectedCount,
+  isSelected,
+  toggleTag,
+  addCustomTag,
+  goBack,
+  goNext,
+} = useReviewHashtagEditor({ reviewStore, api, router })
 </script>
 
 <style scoped>

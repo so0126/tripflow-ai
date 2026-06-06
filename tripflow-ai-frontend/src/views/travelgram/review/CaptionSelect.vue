@@ -80,86 +80,29 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
-  import { ref, onMounted, computed } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
-import StepHeader from '@/components/common/header/StepHeader.vue'
-import PageHeader from '@/components/common/header/PageHeader.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
-import { JOURNEY_SUBTITLES, journeySteps } from '@/constants/journeySubtitles'
+import { journeySteps } from '@/constants/journeySubtitles'
 import IconSpinner from '@/components/common/spinner/IconSpinner.vue'
 import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
+import { useReviewStyleSelection } from '@/composables/travelgram/review/useReviewStyleSelection'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
-
-const isLoading = ref(false)
-const hasError = ref(false)
-const isAnalyzing = ref(false)
-const selectedIndex = ref(null)
-
-const canProceed = computed(() => selectedIndex.value !== null)
-const stepSubtitle = computed(() => JOURNEY_SUBTITLES[3])
-
-// AI 스타일 생성 호출 — 재시도 버튼에서도 다시 부를 수 있도록 함수로 분리
-const loadStyles = async () => {
-  isLoading.value = true
-  hasError.value = false
-  try {
-    const res = await api.generateAiStyles(
-      reviewStore.planId,
-      reviewStore.reviewPostId
-    )
-    reviewStore.setGeneratedOptions(res.data.data)
-  } catch (e) {
-    // 동기 호출이라 서버 실패(5xx)/네트워크 오류가 여기로 전파됨
-    console.error('AI 스타일 생성 실패', e)
-    hasError.value = true
-  } finally {
-    isLoading.value = false
-  }
-}
-
-onMounted(() => {
-  if (reviewStore.generatedOptions.length > 0) return
-  loadStyles()
-})
-
-const selectStyle = (index) => {
-  selectedIndex.value = index
-}
-
-const getLabelClass = (code) => {
-  switch (code) {
-    case 'EMOTIONAL': return 'poetic'
-    case 'INFORMATIVE': return 'inspirational'
-    case 'WITTY': return 'fun'
-    default: return 'casual'
-  }
-}
-
-const goBack = () => router.push({ name: 'PhotoOrder' })
-const props = defineProps({
-  planId: {
-    type: [String, Number],
-    required: true
-  }
-})
-const goNext = async () => {
-  if (selectedIndex.value === null) return
-
-  isAnalyzing.value = true
-  try {
-    const selected = reviewStore.generatedOptions[selectedIndex.value]
-    reviewStore.selectStyleOption(selected)
-    await api.selectStyle(reviewStore.reviewPostId, reviewStore.reviewStyleId)
-    reviewStore.nextStep()
-    router.push({ name: 'HashtagSelect' })
-  } finally {
-    isAnalyzing.value = false
-  }
-}
+const {
+  isLoading,
+  hasError,
+  isAnalyzing,
+  selectedIndex,
+  canProceed,
+  loadStyles,
+  selectStyle,
+  getLabelClass,
+  goBack,
+  goNext,
+} = useReviewStyleSelection({ reviewStore, api, router })
 
 </script>
 

@@ -104,95 +104,30 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
-import { ref, computed, watch } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
 
-import StepHeader from '@/components/common/header/StepHeader.vue'
-import PageHeader from '@/components/common/header/PageHeader.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
-import { JOURNEY_SUBTITLES } from '@/constants/journeySubtitles'
+import { useReviewCaptionEditor } from '@/composables/travelgram/review/useReviewCaptionEditor'
 
-const router = useRouter()
 const route = useRoute()
+const router = useRouter()
 const reviewStore = useReviewStore()
-
-const stepSubtitle = computed(() => JOURNEY_SUBTITLES[5])
-
-const photos = computed(() => reviewStore.photos)
-const caption = ref(reviewStore.caption || '')
-const selectedHashtags = computed(() => reviewStore.selectedHashtags || [])
-
-const currentPhotoIndex = ref(0)
-const isSaving = ref(false)
-const props = defineProps({
-  planId: {
-    type: [String, Number],
-    required: true
-  }
-})
-const canProceed = computed(() => {
-  return photos.value && photos.value.length > 0 && !isSaving.value
-})
-
-/* 바이트 계산 */
-const captionByteLength = computed(() => {
-  let total = 0
-  for (let i = 0; i < caption.value.length; i++) {
-    total += caption.value.charCodeAt(i) > 127 ? 2 : 1
-  }
-  return total
-})
-
-watch(caption, (val) => {
-  reviewStore.caption = val
-})
-
-const prevPhoto = () => {
-  if (currentPhotoIndex.value > 0) {
-    currentPhotoIndex.value--
-    scrollToPhoto()
-  }
-}
-
-const nextPhoto = () => {
-  if (currentPhotoIndex.value < photos.value.length - 1) {
-    currentPhotoIndex.value++
-    scrollToPhoto()
-  }
-}
-
-const scrollToPhoto = () => {
-  const carousel = document.querySelector('.photo-carousel')
-  if (!carousel) return
-
-  const item = carousel.querySelector('.photo-item')
-  if (!item) return
-
-  const itemWidth = item.offsetWidth + 16
-  carousel.scrollLeft = currentPhotoIndex.value * itemWidth
-}
-
-const goBack = () => router.push({ name: 'HashtagSelect' })
-
-const goNext = async () => {
-  isSaving.value = true
-  try {
-    reviewStore.setCaption(caption.value)
-    if (reviewStore.reviewPostId) {
-      await api.updateCaption(reviewStore.reviewPostId, caption.value)
-    }
-    router.push({
-      name: 'InstagramPreview',
-      params: { planId: route.params.planId }
-    })
-  } catch (e) {
-    alert('저장에 실패했습니다.')
-  } finally {
-    isSaving.value = false
-  }
-}
+const {
+  photos,
+  caption,
+  selectedHashtags,
+  currentPhotoIndex,
+  isSaving,
+  canProceed,
+  captionByteLength,
+  prevPhoto,
+  nextPhoto,
+  scrollToPhoto,
+  goBack,
+  goNext,
+} = useReviewCaptionEditor({ reviewStore, api, route, router })
 </script>
 
 <style scoped>

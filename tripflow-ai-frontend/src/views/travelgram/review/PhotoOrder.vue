@@ -97,7 +97,6 @@
 
 <script setup>
 import TravelgramHeader from '@/components/travelgram/TravelgramHeader.vue'
-import { ref, computed, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { useReviewStore } from '@/store/reviewStore'
 import api from '@/api/travelgramApi'
@@ -105,92 +104,23 @@ import api from '@/api/travelgramApi'
 import TipBox from '@/components/common/TipBox.vue'
 import NavigationButtons from '@/components/common/button/NavigationButtons.vue'
 import ErrorRetry from '@/components/travelgram/ErrorRetry.vue'
+import { useReviewPhotoReorder } from '@/composables/travelgram/review/useReviewPhotoReorder'
 
 const router = useRouter()
 const reviewStore = useReviewStore()
 
-/* ================= State ================= */
-const photos = ref([...reviewStore.photos])
-const mainPhotoId = ref(reviewStore.mainPhotoId)
-const isLoading = ref(false)
-const hasError = ref(false)
-
-/* ================= Init ================= */
-onMounted(() => {
-  if (photos.value.length > 0) {
-    mainPhotoId.value = photos.value[0].id
-  }
-})
-
-const syncMainPhoto = () => {
-  if (photos.value.length > 0) {
-    mainPhotoId.value = photos.value[0].id
-  }
-}
-
-/* ================= Actions ================= */
-const selectMain = (id) => {
-  const idx = photos.value.findIndex(p => p.id === id)
-  if (idx <= 0) return
-
-  const selected = photos.value.splice(idx, 1)[0]
-  photos.value.unshift(selected)
-  syncMainPhoto()
-}
-
-const moveUp = (idx) => {
-  if (idx === 0) return
-  ;[photos.value[idx - 1], photos.value[idx]] =
-    [photos.value[idx], photos.value[idx - 1]]
-  syncMainPhoto()
-}
-
-const moveDown = (idx) => {
-  if (idx === 0 || idx >= photos.value.length - 1) return
-  ;[photos.value[idx + 1], photos.value[idx]] =
-    [photos.value[idx], photos.value[idx + 1]]
-  syncMainPhoto()
-}
-
-/* ================= Navigation ================= */
-const canProceed = computed(() =>
-  photos.value.length > 0 && !!mainPhotoId.value && !isLoading.value
-)
-
-const goNext = async () => {
-  if (!canProceed.value) return
-  isLoading.value = true
-  hasError.value = false
-
-  try {
-    reviewStore.setPhotos(photos.value)
-    reviewStore.setMainPhoto(mainPhotoId.value)
-
-    await api.updatePhotoOrder({
-      photoGroupId: reviewStore.photoGroupId,
-      photos: photos.value.map((p, i) => ({
-        photoId: p.id,
-        orderIndex: i
-      }))
-    })
-
-    await api.analyzePhotoMood(reviewStore.photoGroupId)
-
-    reviewStore.nextStep()
-    router.push({
-      name: 'CaptionSelect',
-      params: { planId: reviewStore.planId }
-    })
-  } catch (e) {
-    // 순서 저장/분석 실패(5xx·네트워크) — 사진 순서 화면은 유지하고 재시도 가능하게
-    console.error('사진 순서 저장 또는 분석 실패', e)
-    hasError.value = true
-  } finally {
-    isLoading.value = false
-  }
-}
-
-const goBack = () => router.push({ name: 'CreateTravelReview' })
+const {
+  photos,
+  mainPhotoId,
+  isLoading,
+  hasError,
+  selectMain,
+  moveUp,
+  moveDown,
+  canProceed,
+  goNext,
+  goBack,
+} = useReviewPhotoReorder({ reviewStore, api, router })
 </script>
 
 <style scoped>
