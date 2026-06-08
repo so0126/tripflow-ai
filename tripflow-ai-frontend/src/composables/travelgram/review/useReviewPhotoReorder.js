@@ -52,14 +52,14 @@ export function useReviewPhotoReorder({ reviewStore, api, router }) {
       reviewStore.setMainPhoto(mainPhotoId.value)
 
       await api.updatePhotoOrder({
-        photoGroupId: reviewStore.photoGroupId,
+        reviewPostId: reviewStore.reviewPostId,
         photos: photos.value.map((photo, index) => ({
           photoId: photo.id,
           orderIndex: index,
         })),
       })
 
-      await api.analyzePhotoMood(reviewStore.photoGroupId)
+      await api.analyzePhotoMood(reviewStore.reviewPostId)
 
       reviewStore.nextStep()
       router.push({

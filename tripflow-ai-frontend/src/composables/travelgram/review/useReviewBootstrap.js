@@ -38,7 +38,7 @@ export function useReviewBootstrap({ reviewStore, api, planId, planTitle }) {
     await fetchPlanDetail()
 
     const res = await api.createReview(planId)
-    reviewStore.setReviewInfo(res.data.reviewPostId, res.data.photoGroupId, res.data.hashtagGroupId)
+    reviewStore.setReviewInfo(res.data.reviewPostId)
     isReady.value = true
   }
 

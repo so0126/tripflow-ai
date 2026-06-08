@@ -78,7 +78,7 @@
              ========================== -->
              <div class="uploader-anchor"></div>
              <div class="upload-section">
-               <PhotoUploader v-model="uploadedImages" :is-ready="isReady" :photo-group-id="reviewStore.photoGroupId"
+               <PhotoUploader v-model="uploadedImages" :is-ready="isReady" :review-post-id="reviewStore.reviewPostId"
                :max-count="10" @upload-started="startPolling" @reanalyze="handleReanalyze" />
               </div>
               

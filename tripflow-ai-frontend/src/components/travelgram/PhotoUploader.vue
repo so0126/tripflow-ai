@@ -51,7 +51,7 @@ import api from '@/api/travelgramApi'
 const props = defineProps({
   modelValue: { type: Array, default: () => [] }, // 부모와 v-model로 연결될 이미지 배열
   isReady: { type: Boolean, default: false },     // 업로드 준비 상태
-  photoGroupId: { type: [String, Number], required: false }, // 업로드할 그룹 ID
+  reviewPostId: { type: [String, Number], required: false }, // 업로드 대상 리뷰 포스트 ID
   maxCount: { type: Number, default: 10 }         // 최대 업로드 개수
 })
 
@@ -93,7 +93,7 @@ const handleFileUpload = async (event) => {
 
   // 2. 서버 업로드
   try {
-    const uploadedList = await uploadPhotos(files, props.photoGroupId, baseOrderIndex)
+    const uploadedList = await uploadPhotos(files, props.reviewPostId, baseOrderIndex)
     const finalUploadedList = uploadedList.data || []
 
     // 3. URL 교체 및 상태 업데이트
@@ -127,9 +127,9 @@ const handleFileUpload = async (event) => {
 }
 
 // API 호출 함수
-const uploadPhotos = async (files, photoGroupId, startOrderIndex) => {
+const uploadPhotos = async (files, reviewPostId, startOrderIndex) => {
   const formData = new FormData()
-  formData.append("photoGroupId", photoGroupId)
+  formData.append("reviewPostId", reviewPostId)
   formData.append("startOrderIndex", startOrderIndex)
   
   const fileArray = Array.isArray(files) ? files : [files]

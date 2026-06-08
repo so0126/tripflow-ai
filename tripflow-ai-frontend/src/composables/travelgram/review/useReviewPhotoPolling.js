@@ -21,7 +21,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   }
 
   const checkAnalysisStatus = async () => {
-    const res = await api.getReviewPhotos(reviewStore.photoGroupId)
+    const res = await api.getReviewPhotos(reviewStore.reviewPostId)
     const serverPhotos = res.data.data || []
 
     uploadedImages.value.forEach((image) => {
