@@ -6,8 +6,8 @@
     <!-- review_posts -->
     <insert id="insertDraft" parameterType="ReviewPost" useGeneratedKeys="true" keyProperty="id">
         INSERT INTO review_posts (caption, is_posted, review_post_url, created_at, plan_id,
-        photo_group_id, hashtag_group_id, review_style_id, overall_moods, travel_type) VALUES (null,
-        false, null, NOW(), #{planId}, #{photoGroupId}, #{hashtagGroupId}, null, null, null); </insert>
+        review_style_id, overall_moods, travel_type) VALUES (null,
+        false, null, NOW(), #{planId}, null, null, null); </insert>
 
     <select id="selectReviewPostById" resultType="ReviewPost"> SELECT * FROM review_posts WHERE id =
         #{id}; </select>
@@ -20,13 +20,11 @@
         type="com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse">
         <constructor>
             <idArg column="id" javaType="java.lang.Long" />
-            <arg column="photo_group_id" javaType="java.lang.Long" />
-            <arg column="hashtag_group_id" javaType="java.lang.Long" />
         </constructor>
     </resultMap>
 
     <select id="selectDraftByPlanId" resultMap="reviewCreateResponseMap">
-        SELECT id, photo_group_id, hashtag_group_id
+        SELECT id
         FROM review_posts
         WHERE plan_id = #{planId} AND is_posted IS NOT TRUE
         ORDER BY created_at DESC
@@ -36,29 +34,11 @@
     <select id="selectReviewPostsByPlanId" resultType="ReviewPost"> SELECT * FROM review_posts WHERE
         plan_id = #{planId}; </select>
 
-    <!-- 로그 식별자용: photoGroupId 하나로 reviewPostId(=id), planId 조회 -->
-    <select id="selectReviewPostByPhotoGroupId" resultType="ReviewPost">
-        SELECT id, plan_id AS planId, photo_group_id AS photoGroupId
-        FROM review_posts
-        WHERE photo_group_id = #{photoGroupId}
-    </select>
-
-    <update id="updateReviewPostGroupId"> UPDATE review_posts SET photo_group_id = #{photoGroupId},
-        hashtag_group_id = #{hashtagGroupId} WHERE id = #{reviewPostId} </update>
     <update id="updateReviewPostMood"> UPDATE review_posts SET overall_moods = #{overallMoods},
-        travel_type = #{travelType}::travel_type_enum WHERE photo_group_id = #{photoGroupId} </update>
+        travel_type = #{travelType}::travel_type_enum WHERE id = #{reviewPostId} </update>
     <update id="updateReviewPostStyleIdById"> UPDATE review_posts SET review_style_id =
         #{reviewStyleId} WHERE id = #{reviewPostId} </update>
 
     <update id="updateReviewPostCaptionIdById"> UPDATE review_posts SET caption =
         #{caption} WHERE id = #{reviewPostId} </update>
-
-    <!-- <update id="updateReviewPost" parameterType="ReviewPost">
-        UPDATE review_posts
-        SET caption = #{caption}, is_posted = #{isPosted}, review_post_url = #{reviewPostUrl}, created_at =
-    #{createdAt},
-            plan_id = #{planId}, photo_group_id =#{photoGroupId}, hashtag_group_id=#{hashtagGroupId},
-            review_style_id = #{reviewStyleId}, 
-        WHERE id = #{id}
-    </update> -->
 </mapper>

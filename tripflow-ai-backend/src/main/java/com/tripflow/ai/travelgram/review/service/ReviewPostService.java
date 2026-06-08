@@ -11,8 +11,6 @@ import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.tripflow.ai.travelgram.review.dao.ReviewHashtagDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewHashtagGroup;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhotoGroup;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPost;
 import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse;
@@ -46,38 +44,28 @@ public class ReviewPostService {
 
         reviewPostDao.insertDraft(post);
 
-        ReviewPhotoGroup photoGroup = ReviewPhotoGroup.builder()
-                .reviewPostId(post.getId())
-                .build();
-        ReviewHashtagGroup hashtagGroup = ReviewHashtagGroup.builder()
-                .reviewPostId(post.getId())
-                .build();
-
-        reviewPhotoDao.insertReviewPhotoGroup(photoGroup);
-        reviewHashtagDao.insertHashtagGroup(hashtagGroup);
-        reviewPostDao.updateReviewPostGroupId(post.getId(), photoGroup.getId(), hashtagGroup.getId());
-
-        return new ReviewCreateResponse(post.getId(), photoGroup.getId(), hashtagGroup.getId());
+        // 사진/해시태그는 더 이상 그룹을 경유하지 않고 reviewPostId로 직접 연결되므로,
+        // draft를 만들면 끝. 이후 사진 업로드/해시태그 저장이 post.getId()를 FK로 사용한다.
+        return new ReviewCreateResponse(post.getId());
     }
 
-    public void analyzeTripContext(Long photoGroupId) {
+    public void analyzeTripContext(Long reviewPostId) {
         long startedAt = System.nanoTime();
 
-        List<String> summaryList = reviewPhotoDao.selectPhotoSummariesByPhotoGroupId(photoGroupId);
+        List<String> summaryList = reviewPhotoDao.selectPhotoSummariesByReviewPostId(reviewPostId);
         if (summaryList.isEmpty()) {
             return;
         }
 
         try {
             PhotoAnalysisResult result = reviewImageAnalysisAgent.analyzeTripContext(summaryList);
-            reviewPostDao.updateReviewPostMood(photoGroupId, result.getOverallMood(), result.getTravelType());
+            reviewPostDao.updateReviewPostMood(reviewPostId, result.getOverallMood(), result.getTravelType());
 
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
             log.info("{}", ReviewAiLog.success(
                     ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
                     null,
-                    null,
-                    photoGroupId,
+                    reviewPostId,
                     null,
                     null,
                     elapsedMs));
@@ -86,8 +74,7 @@ public class ReviewPostService {
             log.error("{}", ReviewAiLog.fail(
                     ReviewAiStep.TRIP_CONTEXT_ANALYSIS,
                     null,
-                    null,
-                    photoGroupId,
+                    reviewPostId,
                     null,
                     elapsedMs,
                     e), e);
@@ -106,11 +93,11 @@ public class ReviewPostService {
     }
 
     @Transactional
-    public void updateHashtags(Long hashtagGroupId, List<String> names) {
-        reviewHashtagDao.deleteHashtagsByHashtagGroupId(hashtagGroupId);
+    public void updateHashtags(Long reviewPostId, List<String> names) {
+        reviewHashtagDao.deleteHashtagsByReviewPostId(reviewPostId);
 
         if (names != null && !names.isEmpty()) {
-            reviewHashtagDao.insertHashtagList(hashtagGroupId, names);
+            reviewHashtagDao.insertHashtagList(reviewPostId, names);
         }
     }
 }

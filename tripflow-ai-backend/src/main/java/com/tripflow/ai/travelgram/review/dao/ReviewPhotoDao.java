@@ -6,24 +6,21 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhotoGroup;
 
 
 @Mapper
 public interface ReviewPhotoDao {
 
-    void insertReviewPhotoGroup(ReviewPhotoGroup group);
     void insertReviewPhoto(ReviewPhoto reviewPhoto);
     void updatePhotoOrder(@Param("photoId") Long photoId,
                       @Param("orderIndex") Integer orderIndex,
-                      @Param("photoGroupId") Long photoGroupId);
+                      @Param("reviewPostId") Long reviewPostId);
 
     void updatePhotoSummary(@Param("photoId") Long photoId, @Param("summary") String summary);
     void updatePhotoStatus(@Param("photoId") Long photoId, @Param("status") String status);
     ReviewPhoto selectReviewPhotoById(Long id);
-    ReviewPhotoGroup selectPhotoGroupByPostId(Long postId);
-    List<ReviewPhoto> selectReviewPhotosByPhotoGroupId(Long photoGroupId);
-    List<String> selectPhotoSummariesByPhotoGroupId(Long photoGroupId);
+    List<ReviewPhoto> selectReviewPhotosByReviewPostId(Long reviewPostId);
+    List<String> selectPhotoSummariesByReviewPostId(Long reviewPostId);
 
 
     void deleteReviewPhoto(Long id);

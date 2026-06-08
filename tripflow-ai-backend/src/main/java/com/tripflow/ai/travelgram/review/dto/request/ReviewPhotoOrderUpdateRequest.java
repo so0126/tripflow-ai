@@ -6,7 +6,7 @@ import lombok.Data;
 
 @Data
 public class ReviewPhotoOrderUpdateRequest {
-    private Long photoGroupId;
+    private Long reviewPostId;
     private List<PhotoOrderItem> photos;
     
     @Data

@@ -5,6 +5,6 @@ import java.util.List;
 import lombok.Data;
 @Data
 public class ReviewPhotosAnalysisRequest {
-    private Long photoGroupId;
+    private Long reviewPostId;
     private List<String> summaries;
 }

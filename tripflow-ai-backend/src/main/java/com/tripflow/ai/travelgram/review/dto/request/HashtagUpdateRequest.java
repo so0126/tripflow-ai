@@ -8,6 +8,6 @@ import lombok.NoArgsConstructor;
 @Getter
 @NoArgsConstructor
 public class HashtagUpdateRequest {
-    private Long hashtagGroupId;
+    private Long reviewPostId;
     private List<String> names; // ["여행", "맛집", "힐링"] 처럼 들어옴
 }

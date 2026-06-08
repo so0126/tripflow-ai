@@ -34,7 +34,7 @@ public class ReviewPhotoService {
     // ======================================
     public List<ReviewPhotoUploadResponse> uploadPhotosBatch(
             List<MultipartFile> files,
-            Long photoGroupId, // 👈 JSON 대신 그냥 받음
+            Long reviewPostId, // 👈 JSON 대신 그냥 받음
             Integer startOrderIndex // 👈 JSON 대신 그냥 받음
     ) {
 
@@ -48,7 +48,7 @@ public class ReviewPhotoService {
             // ⭐ 핵심 로직: 순서는 (시작번호 + 현재 인덱스)로 자동 계산
             int currentOrder = startOrderIndex + i;
             // 3. 내부 메서드로 처리 위임
-            ReviewPhotoUploadResponse response = processSinglePhotoUpload(file, photoGroupId, currentOrder);
+            ReviewPhotoUploadResponse response = processSinglePhotoUpload(file, reviewPostId, currentOrder);
             results.add(response);
         }
 
@@ -58,7 +58,7 @@ public class ReviewPhotoService {
     // 내부 처리 메서드 (파라미터가 DTO에서 단순 변수들로 바뀜)
     private ReviewPhotoUploadResponse processSinglePhotoUpload(
             MultipartFile file,
-            Long photoGroupId,
+            Long reviewPostId,
             int orderIndex) {
         // 1) 파일 비어있으면 예외 처리
         if (file == null || file.isEmpty()) {
@@ -88,7 +88,7 @@ public class ReviewPhotoService {
 
         // 2. DB 저장 (AI 요약(summary)은 일단 null 또는 "분석 중..."으로 저장)
         ReviewPhoto photo = ReviewPhoto.builder()
-                .photoGroupId(photoGroupId)
+                .reviewPostId(reviewPostId)
                 .orderIndex(orderIndex)
                 .fileUrl(s3Url)
                 .summary(null) // 나중에 채워짐
@@ -110,8 +110,8 @@ public class ReviewPhotoService {
     }
 
 
-    public List<ReviewPhoto> getReviewPhotos(Long photoGroupId) {
-        return reviewPhotoDao.selectReviewPhotosByPhotoGroupId(photoGroupId);
+    public List<ReviewPhoto> getReviewPhotos(Long reviewPostId) {
+        return reviewPhotoDao.selectReviewPhotosByReviewPostId(reviewPostId);
     }
 
     /**
@@ -166,7 +166,7 @@ public class ReviewPhotoService {
             reviewPhotoDao.updatePhotoOrder(
                     item.getPhotoId(),
                     item.getOrderIndex(),
-                    request.getPhotoGroupId());
+                    request.getReviewPostId());
         }
     }
 }

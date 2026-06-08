@@ -42,7 +42,6 @@ public class ReviewPhotoAnalysisService {
                     ReviewAiStep.PHOTO_ANALYSIS,
                     null,
                     null,
-                    null,
                     photoId,
                     null,
                     elapsedMs));
@@ -52,7 +51,6 @@ public class ReviewPhotoAnalysisService {
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
             log.error("{}", ReviewAiLog.fail(
                     ReviewAiStep.PHOTO_ANALYSIS,
-                    null,
                     null,
                     null,
                     photoId,

@@ -16,9 +16,7 @@ public class ReviewPost {
     private String caption;
     
     private Long planId;
-    private Long photoGroupId;
-    private Long HashtagGroupId;
-    
+
     private Long reviewStyleId;
     
     private Boolean isPosted;

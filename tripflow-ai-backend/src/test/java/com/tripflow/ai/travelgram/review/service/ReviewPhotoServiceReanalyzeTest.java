@@ -60,7 +60,7 @@ public class ReviewPhotoServiceReanalyzeTest {
         // given: FAILED 상태로 남은 사진
         ReviewPhoto photo = ReviewPhoto.builder()
                 .id(PHOTO_ID)
-                .photoGroupId(7L)
+                .reviewPostId(7L)
                 .fileUrl(FILE_URL)
                 .status("FAILED")
                 .build();
@@ -85,7 +85,7 @@ public class ReviewPhotoServiceReanalyzeTest {
         // given: FAILED가 아닌 상태(정상 결과 or 분석 진행 중)
         ReviewPhoto photo = ReviewPhoto.builder()
                 .id(PHOTO_ID)
-                .photoGroupId(7L)
+                .reviewPostId(7L)
                 .fileUrl(FILE_URL)
                 .status(status)
                 .build();
