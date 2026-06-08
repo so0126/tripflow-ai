@@ -260,23 +260,15 @@ CREATE TABLE review_posts (
     caption TEXT,
     is_posted BOOLEAN NOT NULL DEFAULT false,
     review_post_url TEXT,
-    photo_group_id BIGINT,
-    hashtag_group_id BIGINT,
     review_style_id BIGINT,
     travel_type travel_type_enum,
     overall_moods TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
-CREATE TABLE review_photo_groups (
-    id BIGSERIAL PRIMARY KEY,
-    review_post_id BIGINT NOT NULL REFERENCES review_posts(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE review_photos (
     id BIGSERIAL PRIMARY KEY,
-    photo_group_id BIGINT NOT NULL REFERENCES review_photo_groups(id) ON DELETE CASCADE,
+    review_post_id BIGINT NOT NULL REFERENCES review_posts(id) ON DELETE CASCADE,
     file_url TEXT NOT NULL,
     order_index INTEGER NOT NULL DEFAULT 0,
     summary TEXT,
@@ -285,15 +277,9 @@ CREATE TABLE review_photos (
     CONSTRAINT review_photos_status_chk CHECK (status IN ('PENDING', 'SUCCESS', 'FAILED'))
 );
 
-CREATE TABLE review_hashtag_groups (
-    id BIGSERIAL PRIMARY KEY,
-    review_post_id BIGINT NOT NULL REFERENCES review_posts(id) ON DELETE CASCADE,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-);
-
 CREATE TABLE review_hashtags (
     id BIGSERIAL PRIMARY KEY,
-    hashtag_group_id BIGINT NOT NULL REFERENCES review_hashtag_groups(id) ON DELETE CASCADE,
+    review_post_id BIGINT NOT NULL REFERENCES review_posts(id) ON DELETE CASCADE,
     name VARCHAR(100) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
@@ -323,8 +309,6 @@ CREATE TABLE ai_review_hashtags (
 );
 
 ALTER TABLE review_posts
-    ADD CONSTRAINT review_posts_photo_group_fk FOREIGN KEY (photo_group_id) REFERENCES review_photo_groups(id),
-    ADD CONSTRAINT review_posts_hashtag_group_fk FOREIGN KEY (hashtag_group_id) REFERENCES review_hashtag_groups(id),
     ADD CONSTRAINT review_posts_review_style_fk FOREIGN KEY (review_style_id) REFERENCES ai_review_styles(id);
 
 CREATE TABLE checklists (
@@ -406,6 +390,8 @@ CREATE INDEX idx_plan_days_plan_id ON plan_days(plan_id);
 CREATE INDEX idx_plan_places_day_id ON plan_places(day_id);
 CREATE INDEX idx_plan_snapshots_user_version ON plan_snapshots(user_id, version_no DESC);
 CREATE INDEX idx_checklists_user_id ON checklists(user_id);
+CREATE INDEX idx_review_photos_review_post_id ON review_photos(review_post_id);
+CREATE INDEX idx_review_hashtags_review_post_id ON review_hashtags(review_post_id);
 CREATE INDEX idx_image_search_sessions_user_id ON image_search_sessions(user_id);
 CREATE INDEX idx_hotel_bookings_user_id ON hotel_bookings(user_id);
 CREATE INDEX idx_hotel_prices_date ON hotel_rate_plan_prices(stay_date);
