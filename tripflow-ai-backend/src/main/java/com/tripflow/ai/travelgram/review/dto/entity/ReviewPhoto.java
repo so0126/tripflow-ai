@@ -13,7 +13,7 @@ import lombok.NoArgsConstructor;
 @Getter
 public class ReviewPhoto {
     private Long id;
-    private Long photoGroupId;
+    private Long reviewPostId;
     private String fileUrl;
     private Integer orderIndex;
     private String summary;

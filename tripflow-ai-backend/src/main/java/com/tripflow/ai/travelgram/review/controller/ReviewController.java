@@ -57,8 +57,8 @@ public class ReviewController {
     public ResponseEntity<?> uploadReviewPhotos(
             // ❌ 삭제: @RequestPart("dataListJson") String dataListJsonString
 
-            // ✅ 추가: 프론트에서 보낸 photoGroupId (단순 텍스트는 @RequestParam 사용)
-            @RequestParam("photoGroupId") Long photoGroupId,
+            // ✅ 프론트에서 보낸 reviewPostId (단순 텍스트는 @RequestParam 사용)
+            @RequestParam("reviewPostId") Long reviewPostId,
 
             // ✅ 추가: 프론트에서 보낸 startOrderIndex
             @RequestParam("startOrderIndex") Integer startOrderIndex,
@@ -67,15 +67,14 @@ public class ReviewController {
             @RequestPart("files") List<MultipartFile> files) {
         // JSON 파싱 로직 싹 다 삭제하고, 바로 서비스 호출!
         // (서비스 메서드 시그니처도 아까 우리가 수정했으므로 딱 맞습니다)
-        List<ReviewPhotoUploadResponse> result = reviewPhotoService.uploadPhotosBatch(files, photoGroupId, startOrderIndex);
+        List<ReviewPhotoUploadResponse> result = reviewPhotoService.uploadPhotosBatch(files, reviewPostId, startOrderIndex);
 
         return ResponseEntity.ok(result);
     }
 
     @GetMapping("/photos")
-    public ResponseEntity<List<ReviewPhoto>> getPhotosByGroup(@RequestParam("photoGroupId") Long photoGroupId) {
-        // Service에 해당 메서드가 없다면 추가해야 합니다 (아래 설명)
-        List<ReviewPhoto> photos = reviewPhotoService.getReviewPhotos(photoGroupId);
+    public ResponseEntity<List<ReviewPhoto>> getPhotosByGroup(@RequestParam("reviewPostId") Long reviewPostId) {
+        List<ReviewPhoto> photos = reviewPhotoService.getReviewPhotos(reviewPostId);
         return ResponseEntity.ok(photos);
     }
 
@@ -86,10 +85,10 @@ public class ReviewController {
     }
 
     @PostMapping("/photo/analyze")
-    public ResponseEntity<Void> updatePhotoMoods(@RequestParam("photoGroupId") Long photoGroupId) {
+    public ResponseEntity<Void> updatePhotoMoods(@RequestParam("reviewPostId") Long reviewPostId) {
 
         // 서비스 실행 (내부에서 DB 업데이트까지 완료됨)
-        reviewPostService.analyzeTripContext(photoGroupId);
+        reviewPostService.analyzeTripContext(reviewPostId);
 
         // 내용물 없이 성공 신호(200 OK)만 보냄
         return ResponseEntity.ok().build();
@@ -106,7 +105,7 @@ public class ReviewController {
     @PostMapping("/hashtags/create")
     public ResponseEntity<Void> updateHashtag(@RequestBody HashtagUpdateRequest request) {
         // request.getNames()는 ["감성", "여행", "맛집"] 같은 리스트입니다.
-        reviewPostService.updateHashtags(request.getHashtagGroupId(), request.getNames());
+        reviewPostService.updateHashtags(request.getReviewPostId(), request.getNames());
         return ResponseEntity.ok().build();
     }
 

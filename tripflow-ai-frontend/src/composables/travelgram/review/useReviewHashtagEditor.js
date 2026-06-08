@@ -43,7 +43,7 @@ export function useReviewHashtagEditor({ reviewStore, api, router }) {
       reviewStore.selectedHashtags = finalTags
 
       await api.createHashtags({
-        hashtagGroupId: reviewStore.hashtagGroupId,
+        reviewPostId: reviewStore.reviewPostId,
         names: finalTags.map((tag) => tag.name),
       })
 

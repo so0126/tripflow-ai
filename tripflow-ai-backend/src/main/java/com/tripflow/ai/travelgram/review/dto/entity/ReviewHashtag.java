@@ -15,5 +15,5 @@ public class ReviewHashtag {
     private Long id;
     private String name;
     private OffsetDateTime createdAt;
-    private Long hashtagGroupId;
+    private Long reviewPostId;
 }

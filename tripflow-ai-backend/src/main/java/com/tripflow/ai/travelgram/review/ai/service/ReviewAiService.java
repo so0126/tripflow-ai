@@ -192,7 +192,6 @@ public class ReviewAiService {
                         planId,
                         reviewPostId,
                         null,
-                        null,
                         existing.getId(),
                         elapsedMs));
                 return resultList;
@@ -273,7 +272,6 @@ public class ReviewAiService {
                     planId,
                     reviewPostId,
                     null,
-                    null,
                     analysis.getId(),
                     elapsedMs));
             return resultList;
@@ -283,7 +281,6 @@ public class ReviewAiService {
                     ReviewAiStep.STYLE_GENERATION,
                     planId,
                     reviewPostId,
-                    null,
                     null,
                     elapsedMs,
                     e), e);

@@ -14,7 +14,7 @@ const getPlanDetail = async (planId) => {
 const getPlanTitle= async(planId) => {
     return api.get(`/ai/review/${planId}/title`);
 }
-// 1) 리뷰 포스트 + 리뷰 사진 그룹 생성 (review_posts, review_photo_groups auto increment 생성)
+// 1) 리뷰 포스트(draft) 생성. 사진/해시태그는 이후 review_post_id로 직접 연결됨
 const createReview = async(planId)=>{
   const res = await api.post('/reviews/create', null, {
     params: {planId: planId}
@@ -32,16 +32,16 @@ const updatePhotoOrder = async (payload) => {
 }
 
 // 🔥 [추가] 사진 분석 요청 API
-const analyzePhotoMood = async(photoGroupId) =>{
-    // Post 요청, 파라미터로 photoGroupId 전달
+const analyzePhotoMood = async(reviewPostId) =>{
+    // Post 요청, 파라미터로 reviewPostId 전달
     return api.post('/reviews/photo/analyze', null, {
-  params: { photoGroupId: photoGroupId }
+  params: { reviewPostId: reviewPostId }
 })
 }
 // [추가] 조회용 API
-const getReviewPhotos = async(photoGroupId) =>{
+const getReviewPhotos = async(reviewPostId) =>{
     return api.get('/reviews/photos', {
-      params: { photoGroupId }
+      params: { reviewPostId }
     });
 }
 

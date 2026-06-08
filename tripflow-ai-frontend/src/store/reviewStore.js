@@ -4,9 +4,7 @@ export const useReviewStore = defineStore('review', {
   state: () => ({
     planId: null,
     planTitle: '',
-    reviewPostId: null, // 🔥 리뷰 생성(createReview)에서 받아옴
-    photoGroupId: null, // 🔥 사진 업로드에 반드시 필요
-    hashtagGroupId: null,
+    reviewPostId: null, // 🔥 리뷰 생성(createReview)에서 받아옴. 사진/해시태그 모두 이 id 기준
     photos: [],        // [{ id, url, file }]
     mainPhotoId: null,
 
@@ -28,10 +26,8 @@ export const useReviewStore = defineStore('review', {
       this.planTitle = title
     },
     // 🔥 createReview 호출 결과를 저장
-    setReviewInfo(postId, pGroupId, hGroupId) {
+    setReviewInfo(postId) {
       this.reviewPostId = postId
-      this.photoGroupId = pGroupId
-      this.hashtagGroupId = hGroupId
     },
 
     // ✅ 구조를 { id, url, file } 로 통일
@@ -76,7 +72,6 @@ export const useReviewStore = defineStore('review', {
       this.planId = null
       this.planTitle = ''
       this.reviewPostId = null
-      this.groupId = null
       this.reviewStyleId = null
       this.photos = []
       this.mainPhotoId = null

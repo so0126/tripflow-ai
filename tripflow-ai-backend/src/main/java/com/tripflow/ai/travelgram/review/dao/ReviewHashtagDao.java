@@ -5,14 +5,11 @@ import java.util.List;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 
-import com.tripflow.ai.travelgram.review.dto.entity.ReviewHashtagGroup;
-
 
 @Mapper
 public interface ReviewHashtagDao {
-    void insertHashtagGroup(ReviewHashtagGroup group);
-    void insertHashtagList(@Param("hashtagGroupId") Long hashtagGroupId, 
+    void insertHashtagList(@Param("reviewPostId") Long reviewPostId,
                            @Param("names") List<String> names);
-    void deleteHashtagsByHashtagGroupId(@Param("hashtagGroupId") Long hashtagGroupId);
-    
+    void deleteHashtagsByReviewPostId(@Param("reviewPostId") Long reviewPostId);
+
 }
