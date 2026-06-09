@@ -2,8 +2,10 @@
 
 ## 현황
 
-현재 리뷰 서비스에서 예외 처리는 `IllegalArgumentException`, `RuntimeException` 등 raw exception으로 던지고 있음.
-프로젝트의 공통 에러 처리 구조(`BusinessException` + `BaseErrorCode`)를 사용하지 않아 일관성이 깨져 있음.
+리뷰 서비스에서 예외 처리가 `IllegalArgumentException`, `IllegalStateException`, `RuntimeException` 등 raw exception으로 처리되고 있음.
+프로젝트 공통 에러 처리 구조(`BusinessException` + `BaseErrorCode`)를 사용하지 않아 일관성이 깨져 있음.
+
+> 최신 코드 기준: `review photo/hashtag group` 제거 → `review_post_id` 직접 참조로 마이그레이션 완료된 상태
 
 ---
 
@@ -18,6 +20,7 @@ public enum ReviewErrorCode implements BaseErrorCode {
 
     // 400
     REVIEW_PHOTO_EMPTY(HttpStatus.BAD_REQUEST, "업로드할 사진 파일이 비어있습니다."),
+    REVIEW_PHOTO_REANALYZE_NOT_ALLOWED(HttpStatus.BAD_REQUEST, "FAILED 상태의 사진만 재분석할 수 있습니다."),
 
     // 404
     REVIEW_PHOTO_NOT_FOUND(HttpStatus.NOT_FOUND, "해당 사진을 찾을 수 없습니다."),
@@ -43,6 +46,7 @@ public enum ReviewErrorCode implements BaseErrorCode {
 | `processSinglePhotoUpload()` - S3 업로드 실패 | `throw new RuntimeException("S3 upload failed", e)` | `throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_S3_UPLOAD_FAILED)` |
 | `processSinglePhotoUpload()` - 이미지 바이트 읽기 실패 | `throw new RuntimeException("이미지 바이트 읽기 실패", e)` | `throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_READ_FAILED)` |
 | `reanalyzePhoto()` - 사진 없음 | `throw new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다...")` | `throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_NOT_FOUND)` |
+| `reanalyzePhoto()` - FAILED 아닌 상태 재분석 시도 | `throw new IllegalStateException("FAILED 상태 사진만 재분석할 수 있습니다...")` | `throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_REANALYZE_NOT_ALLOWED)` |
 
 ### `ReviewPostService.java`
 
@@ -54,7 +58,7 @@ public enum ReviewErrorCode implements BaseErrorCode {
 
 | 위치 | 기존 코드 | 비고 |
 |------|-----------|------|
-| `analyzePhotoAndUpdateDb()` - `isUsableKoreanSummary` 실패 | `throw new IllegalStateException(...)` | 내부에서 catch → `FAILED` 상태로 DB 기록되므로 에러코드 적용 시 `REVIEW_AI_INVALID_SUMMARY` 사용. 상태 기록 로직은 유지할 것. |
+| `analyzePhotoAndUpdateDb()` - `isUsableKoreanSummary` 실패 | `throw new IllegalStateException(...)` | 내부에서 catch → `FAILED` 상태로 DB 기록됨. 에러코드 적용 시 `REVIEW_AI_INVALID_SUMMARY` 사용, status 기록 로직은 유지할 것. |
 
 ---
 
