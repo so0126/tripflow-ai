@@ -8,7 +8,9 @@ import org.springframework.transaction.annotation.Transactional;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.travelgram.review.dao.ReviewHashtagDao;
+import com.tripflow.ai.travelgram.review.exception.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPost;
@@ -78,7 +80,7 @@ public class ReviewPostService {
                     null,
                     elapsedMs,
                     e), e);
-            throw new RuntimeException(e);
+            throw new BusinessException(ReviewErrorCode.REVIEW_AI_ANALYSIS_FAILED);
         }
     }
 

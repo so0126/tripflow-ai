@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.common.s3.service.S3Service;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
+import com.tripflow.ai.travelgram.review.exception.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest.PhotoOrderItem;
@@ -62,7 +64,7 @@ public class ReviewPhotoService {
             int orderIndex) {
         // 1) 파일 비어있으면 예외 처리
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("file is empty");
+            throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_EMPTY);
         }
         // 2) 확장자 추출
         String originalName = file.getOriginalFilename();
@@ -83,7 +85,7 @@ public class ReviewPhotoService {
         try {
             s3Url = s3Service.uploadFile(file, storedName);
         } catch (Exception e) {
-            throw new RuntimeException("S3 upload failed", e);
+            throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_S3_UPLOAD_FAILED);
         }
 
         // 2. DB 저장 (AI 요약(summary)은 일단 null 또는 "분석 중..."으로 저장)
@@ -102,7 +104,7 @@ public class ReviewPhotoService {
                     file.getContentType(),
                     file.getBytes());
         } catch (IOException e) {
-            throw new RuntimeException("이미지 바이트 읽기 실패", e);
+            throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_READ_FAILED);
         }
 
         return new ReviewPhotoUploadResponse(photo.getId(), photo.getFileUrl(), photo.getOrderIndex());
@@ -124,7 +126,7 @@ public class ReviewPhotoService {
     public void reanalyzePhoto(Long photoId) {
         ReviewPhoto photo = reviewPhotoDao.selectReviewPhotoById(photoId);
         if (photo == null) {
-            throw new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다: photoId=" + photoId);
+            throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_NOT_FOUND);
         }
 
         // FAILED 상태에서만 재시도 전이를 허용한다.
@@ -133,8 +135,7 @@ public class ReviewPhotoService {
         // 프론트가 FAILED 사진에만 버튼을 노출하지만, photoId로 직접 호출하면 우회되므로 서버에서도 막는다.
         // ("FAILED".equals(...)는 status가 null이어도 안전하게 거부한다.)
         if (!"FAILED".equals(photo.getStatus())) {
-            throw new IllegalStateException(
-                    "FAILED 상태 사진만 재분석할 수 있습니다: photoId=" + photoId + ", status=" + photo.getStatus());
+            throw new BusinessException(ReviewErrorCode.REVIEW_PHOTO_REANALYZE_NOT_ALLOWED);
         }
 
         // 1) S3에서 원본 재사용 (실패하면 여기서 던져지고 status는 기존 FAILED로 유지)

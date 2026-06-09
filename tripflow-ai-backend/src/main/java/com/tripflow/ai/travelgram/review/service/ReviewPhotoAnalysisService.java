@@ -5,7 +5,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
+import com.tripflow.ai.travelgram.review.exception.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
@@ -31,7 +33,7 @@ public class ReviewPhotoAnalysisService {
             //      (모델이 분석을 거부하면 영어 거절문/빈 값/"{}" 등을 뱉을 수 있음)
             //      여기서 예외를 던지면 아래 catch가 받아 FAILED로 통일 처리한다.
             if (!isUsableKoreanSummary(summary)) {
-                throw new IllegalStateException("분석 결과가 유효한 한국어 요약이 아님: " + summary);
+                throw new BusinessException(ReviewErrorCode.REVIEW_AI_INVALID_SUMMARY);
             }
 
             // 2. 결과 DB 업데이트 (summary + status=SUCCESS를 한 번에)
