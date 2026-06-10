@@ -84,7 +84,7 @@ const fetchPlans = async () => {
 
     // 백엔드 API 호출
     const response = await api.getAllPlanByUserId(targetId)
-    const allPlans = response.data.data || []
+    const allPlans = response.data?.data || []
 
     // 1. 종료된 여행(isEnded === true)만 필터링
     const completedPlans = allPlans.filter(p => p.isEnded === true)
