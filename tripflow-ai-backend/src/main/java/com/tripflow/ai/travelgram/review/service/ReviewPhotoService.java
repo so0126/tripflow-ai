@@ -66,11 +66,21 @@ public class ReviewPhotoService {
         if (file == null || file.isEmpty()) {
             throw new BusinessException(ReviewErrorCode.INVALID_PHOTO_FILE);
         }
-        // 2) 확장자 추출
-        String originalName = file.getOriginalFilename();
 
+        // 2) 멀티파트를 한 번만 읽어 byte[]로 확보한다. S3 업로드와 AI 분석이 같은 바이트를 재사용한다.
+        //    여기서 못 읽으면 아직 S3/DB에 아무것도 저장되지 않은 상태이므로 그대로 거부한다.
+        String contentType = file.getContentType();
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            log.error("멀티파트 바이트 읽기 실패: storedName 생성 전", e);
+            throw new BusinessException(ReviewErrorCode.INVALID_PHOTO_FILE);
+        }
+
+        // 3) 확장자 추출 + UUID 파일명 생성
+        String originalName = file.getOriginalFilename();
         String folder = "reviewPhotos/";
-        // 3) UUID 파일명 생성
         if (originalName == null || !originalName.contains(".")) {
             originalName = "unknown_" + UUID.randomUUID();
         }
@@ -80,10 +90,11 @@ public class ReviewPhotoService {
             ext = originalName.substring(idx);
         }
         String storedName = folder + UUID.randomUUID().toString() + ext;
-        // 4) S3 업로드 (실패 번역은 S3Service 경계에서 처리 → 여기선 re-wrap 하지 않음)
-        String s3Url = s3Service.uploadFile(file, storedName);
 
-        // 2. DB 저장 (AI 요약(summary)은 일단 null 또는 "분석 중..."으로 저장)
+        // 4) S3 업로드 (실패 번역은 S3Service 경계에서 처리 → 여기선 re-wrap 하지 않음)
+        String s3Url = s3Service.uploadFile(bytes, storedName, contentType);
+
+        // 5) DB 저장 (AI 요약(summary)은 일단 null로 저장, @Async 분석이 채움)
         ReviewPhoto photo = ReviewPhoto.builder()
                 .reviewPostId(reviewPostId)
                 .orderIndex(orderIndex)
@@ -93,18 +104,8 @@ public class ReviewPhotoService {
 
         reviewPhotoDao.insertReviewPhoto(photo);
 
-        try {
-            reviewAnalysisService.analyzePhotoAndUpdateDb(
-                    photo.getId(),
-                    file.getContentType(),
-                    file.getBytes());
-        } catch (IOException e) {
-            // 사진은 S3·DB에 이미 저장됨. 분석에 넘길 바이트만 못 읽은 것이므로 업로드 실패가 아니다.
-            // @Async 분석 실패와 동일하게 status=FAILED로 찍어, 프론트가 폴링→재분석(S3 원본 재사용)으로
-            // 복구할 수 있게 한다. 요청 전체를 502로 깨지 않고 정상 응답을 돌려준다.
-            log.error("멀티파트 바이트 읽기 실패 → status=FAILED 처리: photoId={}", photo.getId(), e);
-            reviewPhotoDao.updatePhotoStatus(photo.getId(), "FAILED");
-        }
+        // 6) 이미 읽어둔 같은 바이트로 @Async 분석 트리거 (getBytes 재호출이 없으므로 try-catch 불필요)
+        reviewAnalysisService.analyzePhotoAndUpdateDb(photo.getId(), contentType, bytes);
 
         return new ReviewPhotoUploadResponse(photo.getId(), photo.getFileUrl(), photo.getOrderIndex());
 
