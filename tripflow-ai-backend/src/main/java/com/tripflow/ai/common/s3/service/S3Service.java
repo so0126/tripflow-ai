@@ -6,12 +6,14 @@ import java.io.InputStream;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import org.springframework.web.multipart.MultipartFile;
 
+import com.amazonaws.AmazonClientException;
 import com.amazonaws.services.s3.AmazonS3;
 import com.amazonaws.services.s3.model.ObjectMetadata;
 import com.amazonaws.services.s3.model.PutObjectRequest;
 import com.amazonaws.services.s3.model.S3Object;
+import com.tripflow.ai.common.global.exception.BusinessException;
+import com.tripflow.ai.common.s3.exception.errorcode.StorageErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,36 +31,27 @@ public class S3Service {
     @Value("${cloud.aws.region.static}")
     private String region;
 
-    public String uploadFile(MultipartFile file, String storedName) {
-
+    /**
+     * 바이트 배열을 S3에 업로드한다.
+     * S3Service는 멀티파트/스트림 읽기를 모른다 — 입력을 byte[]로 받아 S3 호출만 책임진다.
+     * 따라서 여기서 잡는 실패는 S3 호출 실패(AmazonServiceException/SdkClientException)뿐이고,
+     * 입력 바이트를 읽다 나는 IOException은 호출자(읽는 쪽)의 책임으로 분리된다.
+     */
+    public String uploadFile(byte[] bytes, String storedName, String contentType) {
         try {
-            // 메타데이터
             ObjectMetadata metadata = new ObjectMetadata();
-            metadata.setContentLength(file.getSize());
-            metadata.setContentType(file.getContentType());
+            metadata.setContentLength(bytes.length);
+            metadata.setContentType(contentType);
 
-            // S3 업로드
-            amazonS3.putObject(bucket, storedName, file.getInputStream(), metadata);
+            InputStream inputStream = new ByteArrayInputStream(bytes);
+            PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, storedName, inputStream, metadata);
+            amazonS3.putObject(putObjectRequest);
 
-            // ✅ [추천] URL 생성을 SDK에게 맡기기 (더 안전함)
             return amazonS3.getUrl(bucket, storedName).toString();
-
-        } catch (IOException e) {
-            throw new RuntimeException("S3 upload failed", e);
+        } catch (AmazonClientException e) {
+            log.error("S3 upload failed: {}", storedName, e);
+            throw new BusinessException(StorageErrorCode.STORAGE_UPLOAD_FAILED);
         }
-    }
-
-    public String uploadFile2(byte[] imageBytes, String storedName) {
-        // 1) 메타 데이터 생성 (파일 크기, 종류 등)
-        ObjectMetadata metadata = new ObjectMetadata();
-        metadata.setContentLength(imageBytes.length);
-        metadata.setContentType("image/jpeg");
-
-        InputStream inputStream = new ByteArrayInputStream(imageBytes); //byte[] -> InputStream
-        PutObjectRequest putObjectRequest = new PutObjectRequest(bucket, storedName, inputStream, metadata); //업로드 요청 객체 생성
-        amazonS3.putObject(putObjectRequest);
-
-        return amazonS3.getUrl(bucket, storedName).toString(); //업로드된 파일의 URL 반환
     }
 
     public void deleteFile(String fileUrl) {
@@ -87,8 +80,9 @@ public class S3Service {
         // try-with-resources로 S3Object(및 내부 스트림)를 반드시 닫는다 (커넥션 누수 방지)
         try (S3Object s3Object = amazonS3.getObject(bucket, key)) {
             return s3Object.getObjectContent().readAllBytes();
-        } catch (IOException e) {
-            throw new RuntimeException("S3 download failed: " + fileUrl, e);
+        } catch (IOException | AmazonClientException e) {
+            log.error("S3 download failed: {}", fileUrl, e);
+            throw new BusinessException(StorageErrorCode.STORAGE_DOWNLOAD_FAILED);
         }
     }
 }

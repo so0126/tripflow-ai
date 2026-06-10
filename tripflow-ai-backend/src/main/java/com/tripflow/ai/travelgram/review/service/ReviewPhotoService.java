@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.multipart.MultipartFile;
 
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.common.s3.service.S3Service;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
+import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest.PhotoOrderItem;
@@ -62,13 +64,23 @@ public class ReviewPhotoService {
             int orderIndex) {
         // 1) 파일 비어있으면 예외 처리
         if (file == null || file.isEmpty()) {
-            throw new IllegalArgumentException("file is empty");
+            throw new BusinessException(ReviewErrorCode.INVALID_PHOTO_FILE);
         }
-        // 2) 확장자 추출
-        String originalName = file.getOriginalFilename();
 
+        // 2) 멀티파트를 한 번만 읽어 byte[]로 확보한다. S3 업로드와 AI 분석이 같은 바이트를 재사용한다.
+        //    여기서 못 읽으면 아직 S3/DB에 아무것도 저장되지 않은 상태이므로 그대로 거부한다.
+        String contentType = file.getContentType();
+        byte[] bytes;
+        try {
+            bytes = file.getBytes();
+        } catch (IOException e) {
+            log.error("멀티파트 바이트 읽기 실패: storedName 생성 전", e);
+            throw new BusinessException(ReviewErrorCode.INVALID_PHOTO_FILE);
+        }
+
+        // 3) 확장자 추출 + UUID 파일명 생성
+        String originalName = file.getOriginalFilename();
         String folder = "reviewPhotos/";
-        // 3) UUID 파일명 생성
         if (originalName == null || !originalName.contains(".")) {
             originalName = "unknown_" + UUID.randomUUID();
         }
@@ -78,15 +90,11 @@ public class ReviewPhotoService {
             ext = originalName.substring(idx);
         }
         String storedName = folder + UUID.randomUUID().toString() + ext;
-        // 4) S3 업로드
-        String s3Url;
-        try {
-            s3Url = s3Service.uploadFile(file, storedName);
-        } catch (Exception e) {
-            throw new RuntimeException("S3 upload failed", e);
-        }
 
-        // 2. DB 저장 (AI 요약(summary)은 일단 null 또는 "분석 중..."으로 저장)
+        // 4) S3 업로드 (실패 번역은 S3Service 경계에서 처리 → 여기선 re-wrap 하지 않음)
+        String s3Url = s3Service.uploadFile(bytes, storedName, contentType);
+
+        // 5) DB 저장 (AI 요약(summary)은 일단 null로 저장, @Async 분석이 채움)
         ReviewPhoto photo = ReviewPhoto.builder()
                 .reviewPostId(reviewPostId)
                 .orderIndex(orderIndex)
@@ -96,14 +104,8 @@ public class ReviewPhotoService {
 
         reviewPhotoDao.insertReviewPhoto(photo);
 
-        try {
-            reviewAnalysisService.analyzePhotoAndUpdateDb(
-                    photo.getId(),
-                    file.getContentType(),
-                    file.getBytes());
-        } catch (IOException e) {
-            throw new RuntimeException("이미지 바이트 읽기 실패", e);
-        }
+        // 6) 이미 읽어둔 같은 바이트로 @Async 분석 트리거 (getBytes 재호출이 없으므로 try-catch 불필요)
+        reviewAnalysisService.analyzePhotoAndUpdateDb(photo.getId(), contentType, bytes);
 
         return new ReviewPhotoUploadResponse(photo.getId(), photo.getFileUrl(), photo.getOrderIndex());
 
@@ -124,7 +126,8 @@ public class ReviewPhotoService {
     public void reanalyzePhoto(Long photoId) {
         ReviewPhoto photo = reviewPhotoDao.selectReviewPhotoById(photoId);
         if (photo == null) {
-            throw new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다: photoId=" + photoId);
+            log.warn("재분석할 사진을 찾을 수 없습니다: photoId={}", photoId);
+            throw new BusinessException(ReviewErrorCode.PHOTO_NOT_FOUND);
         }
 
         // FAILED 상태에서만 재시도 전이를 허용한다.
@@ -133,8 +136,8 @@ public class ReviewPhotoService {
         // 프론트가 FAILED 사진에만 버튼을 노출하지만, photoId로 직접 호출하면 우회되므로 서버에서도 막는다.
         // ("FAILED".equals(...)는 status가 null이어도 안전하게 거부한다.)
         if (!"FAILED".equals(photo.getStatus())) {
-            throw new IllegalStateException(
-                    "FAILED 상태 사진만 재분석할 수 있습니다: photoId=" + photoId + ", status=" + photo.getStatus());
+            log.warn("FAILED 상태 사진만 재분석할 수 있습니다: photoId={}, status={}", photoId, photo.getStatus());
+            throw new BusinessException(ReviewErrorCode.PHOTO_NOT_REANALYZABLE);
         }
 
         // 1) S3에서 원본 재사용 (실패하면 여기서 던져지고 status는 기존 FAILED로 유지)

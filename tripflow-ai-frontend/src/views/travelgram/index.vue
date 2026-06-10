@@ -84,7 +84,7 @@ const fetchPlans = async () => {
 
     // 백엔드 API 호출
     const response = await api.getAllPlanByUserId(targetId)
-    const allPlans = response.data
+    const allPlans = response.data?.data || []
 
     // 1. 종료된 여행(isEnded === true)만 필터링
     const completedPlans = allPlans.filter(p => p.isEnded === true)
@@ -136,7 +136,7 @@ const goToReview = async (id, title) => {
       const response = await api.getPlanTitle(id); // 백엔드 호출
 
       // 2. 받아온 새 제목 할당
-      targetTitle = response.data;
+      targetTitle = response.data.data;
       console.log("새로 생성된 제목:", targetTitle);
 
       

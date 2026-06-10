@@ -94,7 +94,7 @@ const handleFileUpload = async (event) => {
   // 2. 서버 업로드
   try {
     const uploadedList = await uploadPhotos(files, props.reviewPostId, baseOrderIndex)
-    const finalUploadedList = uploadedList.data || []
+    const finalUploadedList = uploadedList.data.data || []
 
     // 3. URL 교체 및 상태 업데이트
     const newList = updatedList.map(img => {

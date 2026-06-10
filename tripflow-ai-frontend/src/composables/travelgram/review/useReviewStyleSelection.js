@@ -14,7 +14,7 @@ export function useReviewStyleSelection({ reviewStore, api, router }) {
 
     try {
       const res = await api.generateAiStyles(reviewStore.planId, reviewStore.reviewPostId)
-      reviewStore.setGeneratedOptions(res.data.data)
+      reviewStore.setGeneratedOptions(res.data.data || [])
     } catch (error) {
       console.error('AI 스타일 생성 실패', error)
       hasError.value = true

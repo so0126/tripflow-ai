@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RequestPart;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.multipart.MultipartFile;
 
-import com.tripflow.ai.common.global.annotation.NoWrap;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
 import com.tripflow.ai.travelgram.review.dto.request.HashtagUpdateRequest;
 import com.tripflow.ai.travelgram.review.dto.request.ReviewPhotoOrderUpdateRequest;
@@ -51,7 +50,6 @@ public class ReviewController {
     // ======================================
     // 2) 사진 업로드/순서 영역
     // ======================================
-    @NoWrap
     // Controller
     @PostMapping(value = "/photos/upload", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<?> uploadReviewPhotos(

@@ -6,7 +6,7 @@ export function useReviewBootstrap({ reviewStore, api, planId, planTitle }) {
 
   const fetchPlanDetail = async () => {
     const res = await api.getPlanDetail(planId)
-    const data = res.data
+    const data = res.data.data
     const rawBudget = Number(data.plan.budget || 0)
 
     currentPlanInfo.value = {
@@ -38,7 +38,7 @@ export function useReviewBootstrap({ reviewStore, api, planId, planTitle }) {
     await fetchPlanDetail()
 
     const res = await api.createReview(planId)
-    reviewStore.setReviewInfo(res.data.reviewPostId)
+    reviewStore.setReviewInfo(res.data.data.reviewPostId)
     isReady.value = true
   }
 

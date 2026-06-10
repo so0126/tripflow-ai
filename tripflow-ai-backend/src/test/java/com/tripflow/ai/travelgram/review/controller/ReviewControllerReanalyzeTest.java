@@ -14,13 +14,15 @@ import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.tripflow.ai.common.global.exception.BusinessException;
+import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.service.ReviewPhotoService;
 import com.tripflow.ai.travelgram.review.service.ReviewPostService;
 
 /**
  * 재분석 엔드포인트가 서비스 예외를 실제 HTTP 상태로 매핑하는지 검증하는 웹 슬라이스 스모크.
  *
- * 서비스 단위테스트(ReviewPhotoServiceReanalyzeTest)는 "FAILED 아니면 IllegalStateException"까지만 본다.
+ * 서비스 단위테스트(ReviewPhotoServiceReanalyzeTest)는 "FAILED 아니면 PHOTO_NOT_REANALYZABLE"까지만 본다.
  * 여기서는 그 예외가 GlobalExceptionHandler를 거쳐 **409 Conflict**로 나가는지(매핑 배선)를 증명한다.
  *
  * - @WebMvcTest는 컨트롤러 + @ControllerAdvice만 올리므로 DB/OpenAI/S3 빈은 뜨지 않는다.
@@ -43,9 +45,9 @@ class ReviewControllerReanalyzeTest {
     private static final long PHOTO_ID = 42L;
 
     @Test
-    @DisplayName("FAILED 아닌 사진 재분석 → 서비스가 IllegalStateException → 409 Conflict")
+    @DisplayName("FAILED 아닌 사진 재분석 → 서비스가 PHOTO_NOT_REANALYZABLE → 409 Conflict")
     void reanalyze_notFailed_returns409() throws Exception {
-        doThrow(new IllegalStateException("FAILED 상태 사진만 재분석할 수 있습니다"))
+        doThrow(new BusinessException(ReviewErrorCode.PHOTO_NOT_REANALYZABLE))
                 .when(reviewPhotoService).reanalyzePhoto(eq(PHOTO_ID));
 
         mockMvc.perform(post("/reviews/photo/{photoId}/reanalyze", PHOTO_ID))
@@ -53,9 +55,9 @@ class ReviewControllerReanalyzeTest {
     }
 
     @Test
-    @DisplayName("없는 photoId 재분석 → 서비스가 IllegalArgumentException → 404 Not Found")
+    @DisplayName("없는 photoId 재분석 → 서비스가 REVIEW_PHOTO_NOT_FOUND → 404 Not Found")
     void reanalyze_missingPhoto_returns404() throws Exception {
-        doThrow(new IllegalArgumentException("재분석할 사진을 찾을 수 없습니다: photoId=" + PHOTO_ID))
+        doThrow(new BusinessException(ReviewErrorCode.PHOTO_NOT_FOUND))
                 .when(reviewPhotoService).reanalyzePhoto(eq(PHOTO_ID));
 
         mockMvc.perform(post("/reviews/photo/{photoId}/reanalyze", PHOTO_ID))

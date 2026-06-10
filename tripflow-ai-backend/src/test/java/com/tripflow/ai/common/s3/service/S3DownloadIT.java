@@ -39,7 +39,7 @@ class S3DownloadIT {
         byte[] original = "tripflow-s3-roundtrip".getBytes(StandardCharsets.UTF_8);
         String storedName = "reviewPhotos/it-" + UUID.randomUUID() + ".jpg";
 
-        String url = s3Service.uploadFile2(original, storedName);
+        String url = s3Service.uploadFile(original, storedName, "image/jpeg");
         try {
             byte[] downloaded = s3Service.downloadFile(url);
             assertArrayEquals(original, downloaded);
