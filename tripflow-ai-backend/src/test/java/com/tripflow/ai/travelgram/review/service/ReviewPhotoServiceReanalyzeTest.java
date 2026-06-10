@@ -17,9 +17,11 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.common.s3.service.S3Service;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPhoto;
+import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
 
 /**
  * ReviewPhotoService.reanalyzePhoto 검증 (FAILED 사진 개별 재분석).
@@ -80,7 +82,7 @@ public class ReviewPhotoServiceReanalyzeTest {
 
     @ParameterizedTest(name = "status={0} 사진은 재분석이 거부된다")
     @ValueSource(strings = { "SUCCESS", "PENDING" })
-    @DisplayName("FAILED가 아닌 사진은 IllegalStateException으로 거부하고 다운로드/재분석을 트리거하지 않는다")
+    @DisplayName("FAILED가 아닌 사진은 PHOTO_NOT_REANALYZABLE로 거부하고 다운로드/재분석을 트리거하지 않는다")
     public void reanalyzePhoto_rejectsWhenNotFailed(String status) {
         // given: FAILED가 아닌 상태(정상 결과 or 분석 진행 중)
         ReviewPhoto photo = ReviewPhoto.builder()
@@ -93,7 +95,9 @@ public class ReviewPhotoServiceReanalyzeTest {
 
         // when / then: 상태 충돌로 거부 (컨트롤러단에서 409로 매핑됨)
         assertThatThrownBy(() -> reviewPhotoService.reanalyzePhoto(PHOTO_ID))
-                .isInstanceOf(IllegalStateException.class);
+                .isInstanceOf(BusinessException.class)
+                .extracting(e -> ((BusinessException) e).getBaseErrorCode())
+                .isEqualTo(ReviewErrorCode.PHOTO_NOT_REANALYZABLE);
 
         // then: 거부 시 S3 다운로드도, PENDING 리셋도, 재분석도 일어나지 않는다
         verify(s3Service, never()).downloadFile(anyString());

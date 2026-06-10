@@ -18,6 +18,8 @@ import com.tripflow.ai.planner.plan.dto.entity.Plan;
 import com.tripflow.ai.planner.plan.dto.entity.PlanDay;
 import com.tripflow.ai.planner.plan.dto.entity.CurrentActivity;
 import com.tripflow.ai.planner.plan.dto.entity.PlanPlace;
+import com.tripflow.ai.common.global.exception.BusinessException;
+import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
 import com.tripflow.ai.travelgram.review.ai.agent.PlanTitleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewStyleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.assembler.ReviewInputJsonAssembler;
@@ -101,7 +103,8 @@ public class ReviewAiService {
         Plan plan = planDao.selectPlanById(planId);
         
         if (plan == null) {
-            throw new IllegalArgumentException("Plan not found: " + planId);
+            log.warn("Plan not found: planId={}", planId);
+            throw new BusinessException(ReviewErrorCode.PLAN_NOT_FOUND);
         }
 
         // 조건: 여행이 끝났고(isEnded=true) AND 제목이 비어있음
@@ -205,7 +208,7 @@ public class ReviewAiService {
             // (ReviewPostDao에 selectById가 있다고 가정하거나 추가 필요)
             ReviewPost post = reviewPostDao.selectReviewPostById(reviewPostId);
             if (post == null)
-                throw new IllegalArgumentException("Review Post not found");
+                throw new BusinessException(ReviewErrorCode.POST_NOT_FOUND);
 
             String mood = post.getOverallMoods();
             String type = post.getTravelType();
@@ -275,6 +278,10 @@ public class ReviewAiService {
                     analysis.getId(),
                     elapsedMs));
             return resultList;
+        } catch (BusinessException e) {
+            // 의미 있는 도메인 예외(예: POST_NOT_FOUND 404)는 그대로 통과시킨다.
+            // 아래 catch(Exception)가 삼켜 502로 덮어쓰지 않도록 먼저 잡아 재던진다.
+            throw e;
         } catch (Exception e) {
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
             log.error("{}", ReviewAiLog.fail(
@@ -284,7 +291,7 @@ public class ReviewAiService {
                     null,
                     elapsedMs,
                     e), e);
-            throw new RuntimeException(e);
+            throw new BusinessException(ReviewErrorCode.STYLE_GENERATION_FAILED);
         }
     }
 }

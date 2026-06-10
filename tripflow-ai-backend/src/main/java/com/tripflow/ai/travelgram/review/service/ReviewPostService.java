@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
@@ -14,6 +15,7 @@ import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPost;
 import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
 import com.tripflow.ai.travelgram.review.dto.response.ReviewCreateResponse;
+import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
 
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -78,7 +80,7 @@ public class ReviewPostService {
                     null,
                     elapsedMs,
                     e), e);
-            throw new RuntimeException(e);
+            throw new BusinessException(ReviewErrorCode.TRIP_CONTEXT_GENERATION_FAILED);
         }
     }
 
