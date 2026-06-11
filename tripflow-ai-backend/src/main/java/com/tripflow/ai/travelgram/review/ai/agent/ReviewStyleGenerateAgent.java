@@ -5,6 +5,7 @@ import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Component;
 import com.tripflow.ai.travelgram.review.ai.dto.response.GeneratedStyleResponse;
 import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
@@ -98,24 +99,26 @@ public class ReviewStyleGenerateAgent {
                 - Type: %s
                 """, tripJson, mood, travelType);
 
+        // content()만 뽑던 것을 chatResponse()로 받아 본문 + 토큰 사용량을 함께 들고 나간다.
+        // LLM 호출 실패 등은 여기서 잡지 않고 그대로 서비스로 전파한다.
+        // → 서비스가 ReviewAiLog.fail(...)로 진짜 예외를 로깅하고 BusinessException으로 번역한다.
+        ChatResponse chatResponse = chatClient.prompt()
+                .system(systemPrompt)
+                .user(userPrompt)
+                .call()
+                .chatResponse();
+
+        String response = chatResponse.getResult().getOutput().getText();
+
+        // 마크다운 제거 (```json ...)
+        String cleanJson = response.replaceAll("```json", "").replaceAll("```", "").trim();
+
+        // JSON 파싱 실패만 좁게 잡아 cause를 살려 래핑한다(형제 analyzeTripContext와 동일 패턴).
         try {
-            // content()만 뽑던 것을 chatResponse()로 받아 본문 + 토큰 사용량을 함께 들고 나간다.
-            ChatResponse chatResponse = chatClient.prompt()
-                    .system(systemPrompt)
-                    .user(userPrompt)
-                    .call()
-                    .chatResponse();
-
-            String response = chatResponse.getResult().getOutput().getText();
-
-            // 마크다운 제거 (```json ...)
-            String cleanJson = response.replaceAll("```json", "").replaceAll("```", "").trim();
-
             GeneratedStyleResponse result = objectMapper.readValue(cleanJson, GeneratedStyleResponse.class);
             return new AiResult<>(result, AiTokenUsage.from(chatResponse));
-
-        } catch (Exception e) {
-            throw new RuntimeException("AI Style Generation Error");
+        } catch (JsonProcessingException e) {
+            throw new RuntimeException("스타일 생성 JSON 파싱 실패", e);
         }
     }
 }
