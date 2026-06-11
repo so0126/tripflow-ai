@@ -224,6 +224,9 @@ public class ReviewAiService {
             try {
                 outputJsonString = objectMapper.writeValueAsString(aiResponse);
             } catch (Exception e) {
+                // outputJson은 디버깅용 필드 → 직렬화 실패로 스타일 생성 흐름을 끊지 않는다.
+                // 단, 조용히 삼키지 말고 실패는 남겨 관찰 가능하게 한다.
+                log.warn("outputJson 직렬화 실패 (분석 이력 저장은 계속) reviewPostId={}", reviewPostId, e);
             }
 
             AiReviewAnalysis analysis = AiReviewAnalysis.builder()
