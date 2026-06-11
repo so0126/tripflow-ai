@@ -23,66 +23,135 @@
 
 ---
 
-## 2. 세 가지 작업
+## 2. 작업 분해안
 
-### #2 에러 처리 (가장 작음)
+### 2.1 공통 상태기계 정리
 
-**문제**: `checkAnalysisStatus`에 try/catch가 없어 요청 실패 시 unhandled rejection. 루프는 계속 돈다.
+먼저 폴링을 하나의 작은 상태기계로 정리한다.
 
-**계획**:
+필요한 상태는 아래 4개다.
+
+- `pollingStatus`: `idle | polling | error | timeout`
+- `pollingFailCount`: 연속 실패 횟수
+- `pollingAttemptCount`: 총 시도 횟수
+- `pollingTimer`: 현재 폴링 핸들러
+
+공통 규칙은 다음과 같다.
+
+- `startPolling()`에서 실패 카운터와 시도 카운터를 모두 초기화한다.
+- `stopPolling()`은 타이머 해제와 상태 종료만 책임진다.
+- 성공 응답이 오면 `pollingFailCount`를 0으로 리셋한다.
+- 종료 조건은 `allSettled`, 연속 실패, 최대 시도 횟수, 수동 종료의 4가지로 맞춘다.
+
+이 정리를 먼저 해두면 `#2`, `#3`, `#1`이 서로 상태를 덮어쓰지 않는다.
+
+### 2.2 #2 에러 처리
+
+**문제**
+
+`checkAnalysisStatus`에 try/catch가 없어 요청 실패 시 unhandled rejection이 발생하고, 인터벌은 계속 돈다.
+
+**작업**
+
 - `checkAnalysisStatus` 본문을 try/catch로 감싼다.
-- **연속 실패 카운터** 도입: 성공 시 0으로 리셋, catch에서 +1.
-- **3회 연속 실패하면** `stopPolling()` + 에러 상태 노출(기존 alert 패턴 재사용, "상태 확인에 실패했어요. 새로고침 해주세요").
+- 성공 시 `pollingFailCount`를 0으로 리셋한다.
+- catch에서 `pollingFailCount`를 1 증가시킨다.
+- `pollingFailCount >= 3`이면 `stopPolling()`을 호출하고 에러 상태를 노출한다.
+- 안내 문구는 기존 alert 패턴을 재사용하되, 원인별 문구는 분리한다.
+  - 요청 실패: `"상태 확인에 실패했어요. 새로고침 해주세요."`
+  - 타임아웃: `"분석이 지연돼요. 잠시 후 재시도해주세요."`
 
-**CS 포인트**: 일시적(네트워크 깜빡임) vs 지속적 실패 구분 — 한 번 실패로 루프를 죽이지도, 영원히 실패하며 돌지도 않게 하는 **bounded retry**.
+**의도**
 
-### #3 무한 폴링 방지 (#2와 같은 조각)
+한 번의 네트워크 흔들림으로 루프를 죽이지도 않고, 계속 실패하는데도 영원히 돌지 않게 한다.
 
-**문제**: 고정 3초 + 상한 없음. 분석이 영영 `PENDING`이면 무한 폴링.
+### 2.3 #3 무한 폴링 방지
 
-**계획**:
-- 시도 횟수(또는 시작 시각)를 추적해 상한을 둔다. 예: 최대 60회(≈180초).
-- 상한 초과 시 `stopPolling()` + 타임아웃 상태 노출("분석이 지연돼요. 잠시 후 재시도").
-- (선택, 후순위) 백오프: `setInterval` → 재귀 `setTimeout`으로 3s→5s→8s 점증. AI가 느릴 때 서버 부하 완화. **1차는 고정 간격 + 하드 상한**으로, 백오프는 나중에.
+**문제**
 
-**CS 포인트**: bounded work / timeout. 백오프는 thundering load 완화.
+고정 3초 간격에 상한이 없어서 분석이 계속 `PENDING`이면 무한 폴링이 된다.
 
-**공유 설계**: #2·#3은 `pollingError`(또는 `'polling'|'error'|'timeout'` 상태값) 1개 + 카운터 2개(연속실패, 시도횟수)로 함께 처리한다. 둘 다 종료 = `stopPolling()` + 사용자 표시이므로 같은 기계장치.
+**작업**
 
-**중요 디테일**: `handleReanalyze`가 폴링을 재시작하므로, **카운터 리셋을 `startPolling` 안에** 넣어야 재분석 시 예산이 새로 주어진다.
+- `pollingAttemptCount`를 두고 상한을 건다.
+- 1차 기준은 최대 60회, 즉 약 180초로 둔다.
+- 상한을 넘으면 `stopPolling()`을 호출하고 `pollingStatus = 'timeout'`으로 바꾼다.
+- 타임아웃도 에러와 같은 종료 계열이므로, 마지막 표시만 다르게 한다.
+- 백오프는 이번 작업에서 제외하고, 필요하면 다음 단계에서 `setTimeout` 기반으로 바꾼다.
 
-### #1 새로고침 복원 (rehydration, 별도 조각·후순위)
+**의도**
 
-**문제**: 새로고침하면 `uploadedImages`가 리셋 → `totalCount=0` → 진행 중이던 분석을 못 따라간다.
+bounded work를 보장해서 분석이 영영 끝나지 않는 경우에도 UI와 타이머가 영구 점유되지 않게 한다.
 
-**계획**:
-- `onMounted`에서 `createReview`(멱등 처리됨 → 기존 draft의 `photoGroupId` 반환)로 그룹 id를 받은 뒤, `getReviewPhotos`로 서버 사진을 불러와 `uploadedImages`를 **서버 상태로 시드**한다.
-- 매핑: 서버 사진 → `{ id, url, status, summary, orderIndex, uploading:false }`.
-- 시드 후 `PENDING`이 하나라도 있으면 `startPolling()` → 새로고침해도 이어진다.
+### 2.4 #2와 #3의 연결 규칙
 
-**선결 컨트랙트 확인**: `ReviewPhoto` 엔티티가 사진 URL을 `fileUrl`로 주는지 `url`로 주는지(`PhotoUploader`는 `url` 기대), `orderIndex`를 주는지 확인 후 매핑 확정.
+이 두 작업은 같은 루프 안에서 같이 작동해야 한다.
 
-**우선순위 메모**: "일회성 플로우" 결정상 원래 가치가 낮았으나, `createReview` 멱등화로 데이터가 서버에 남아 품이 줄었다. 그래도 #2·#3보다 뒤 — 컨트랙트 확인 + 새 상태 흐름이 더 큼.
+- `startPolling()`이 실행되면 두 카운터를 동시에 초기화한다.
+- `checkAnalysisStatus()`가 성공하면 실패 카운터를 리셋한다.
+- 실패가 누적되면 `error`로 종료한다.
+- `PENDING`이 오래 지속되면 `timeout`으로 종료한다.
+- `handleReanalyze()`는 기존처럼 폴링을 재시작하지만, 카운터는 새로 시작돼야 한다.
+
+이 규칙을 지키면 재분석 시 이전 실패 이력이 다음 분석을 오염시키지 않는다.
+
+### 2.5 #1 새로고침 복원
+
+**문제**
+
+새로고침하면 `uploadedImages`가 비어서 `totalCount=0`이 되고, 진행 중이던 분석 상태를 다시 못 따라간다.
+
+**작업**
+
+- `onMounted`에서 `createReview`를 호출해 현재 draft의 `photoGroupId`를 확보한다.
+- 이어서 `getReviewPhotos`를 호출해 서버 상태를 다시 가져온다.
+- 응답 사진 배열을 `uploadedImages`에 서버 상태로 시드한다.
+- 매핑은 `PhotoUploader`가 기대하는 형태로 맞춘다.
+  - `id`
+  - `url`
+  - `status`
+  - `summary`
+  - `orderIndex`
+  - `uploading: false`
+- 시드 후 `PENDING`이 하나라도 있으면 `startPolling()`을 다시 호출한다.
+
+**선결 확인**
+
+`ReviewPhoto`가 실제로 `url`을 내려주는지, 아니면 `fileUrl` 같은 다른 필드인지 확인해야 한다. `PhotoUploader`는 `url`을 기대하므로 여기서 매핑을 확정해야 한다.
+
+**의도**
+
+새로고침을 해도 서버를 진실의 원천으로 다시 읽어서 진행 중 상태를 복원한다.
 
 ---
 
 ## 3. 추천 순서
 
-1. **#2 + #3 한 조각** — 작고 컨트랙트 리스크 없음. 견고성 즉시 상승.
-2. **#1 따로** — `ReviewPhoto` URL/order 필드 확인 후.
+1. `#2`와 `#3`을 먼저 묶어서 처리한다.
+2. `#1`은 `ReviewPhoto` 응답 필드 확인 후 별도로 처리한다.
 
-**과한 추상화 경고**: 셋 다 폴링 한 곳에서만 쓰므로 컴포넌트 안 인라인 유지. 재사용이 실제로 생기면 그때 `useReviewPhotoPolling.js`로 추출(참고: `front-review-refactor-v2.md`에 해당 컴포저블 계획이 있으나 현재는 인라인 상태).
+이 순서를 추천하는 이유는 다음과 같다.
+
+- `#2`와 `#3`은 같은 상태기계라 한 번에 고치는 편이 덜 흔들린다.
+- `#1`은 서버 응답 필드와 초기 시드 흐름을 확인해야 해서 계약 리스크가 있다.
+- `#2`와 `#3`만으로도 현재 가장 큰 문제인 무한 루프와 unhandled rejection을 먼저 제거할 수 있다.
+
+**과한 추상화 경고**
+
+이번 범위에서는 컴포넌트 안에 인라인으로 유지한다. 재사용이 실제로 생기면 그때 `useReviewPhotoPolling.js`로 추출한다. 참고로 `front-review-refactor-v2.md`의 컴포저블 계획과도 방향이 맞는다.
 
 ---
 
 ## 4. 검증
 
-- **#2**: 백엔드 내리거나 네트워크 차단 → 폴링이 3회 후 멈추고 에러 안내가 뜨는지. 복구 후 재분석으로 다시 도는지.
-- **#3**: 응답을 계속 `PENDING`으로 두고(또는 짧은 상한으로 임시 설정) → 상한 초과 시 타임아웃 안내가 뜨고 루프가 멈추는지.
-- **#1**: 분석 중 새로고침 → 사진과 진행 상태가 복원되고 폴링이 이어지는지. 게시 완료 후 재진입 시엔 새 draft라 빈 상태인지.
+- `#2` 검증: 백엔드를 내리거나 네트워크를 차단했을 때 3회 실패 후 멈추고 에러 안내가 뜨는지 확인한다.
+- `#3` 검증: 응답을 계속 `PENDING`으로 유지했을 때 상한 도달 후 타임아웃 안내가 뜨고 루프가 멈추는지 확인한다.
+- `#1` 검증: 분석 중 새로고침했을 때 사진과 진행 상태가 복원되고 폴링이 이어지는지 확인한다.
+- 공통 검증: 재분석 후에는 카운터가 초기화된 상태로 다시 추적되는지 확인한다.
 
 ---
 
-## 5. 연관 변경 (완료)
+## 5. 연관 변경
 
-- `ReviewPostService.createReview` 멱등화(get-or-create) — 같은 plan 재진입 시 빈 draft가 쌓이지 않고, #1 rehydration의 데이터 출처가 됨.
+- `ReviewPostService.createReview` 멱등화(get-or-create)는 `#1` 복원의 데이터 출처가 된다.
+- 즉, 같은 plan으로 다시 들어와도 서버에 남아 있는 draft를 기준으로 사진 상태를 복원할 수 있다.
