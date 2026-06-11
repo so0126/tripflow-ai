@@ -16,7 +16,7 @@ Vue 3.5, Java 21, Spring Boot 3.4, Spring AI 1.0.0, MyBatis, PostgreSQL, AWS S3,
 
 ### 1. 리뷰 입력 데이터 기반 정리
 
-리뷰 생성에 필요한 일정/장소 데이터를 안정적으로 활용할 수 있도록 데이터 흐름을 정리합니다.
+travel_place 테이블을 Naver Local로 채우기, hotel_seed 데모로 생성하기, 환경변수 정리
 
 ### 2. 리뷰 Draft 생성 고도화
 
