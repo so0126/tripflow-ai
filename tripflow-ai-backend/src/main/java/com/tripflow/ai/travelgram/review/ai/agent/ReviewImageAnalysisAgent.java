@@ -3,7 +3,10 @@ package com.tripflow.ai.travelgram.review.ai.agent;
 import java.util.List;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.SystemMessage;
+
+import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
 import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
@@ -28,7 +31,7 @@ public class ReviewImageAnalysisAgent {
   // ======================================================
   // 1단계: 개별 사진 요약 (Vision AI)
   // ======================================================
-  public String analyzeReviewImage(String contentType, byte[] bytes) {
+  public AiResult<String> analyzeReviewImage(String contentType, byte[] bytes) {
     // 1. 시스템 프롬프트: 여행스타그램 리뷰어 페르소나 부여
     SystemMessage systemMessage = new SystemMessage(
         """
@@ -60,10 +63,14 @@ public class ReviewImageAnalysisAgent {
 
     // 4. LLM 호출
     // 실패(외부 API 오류 등)는 삼키지 않고 호출자(service)로 전파 → service가 status=FAILED로 기록
-    return chatClient.prompt()
+    // content()만 뽑던 것을 chatResponse()로 받아 본문 + 토큰 사용량을 함께 들고 나간다.
+    ChatResponse response = chatClient.prompt()
         .messages(systemMessage, userMessage)
         .call()
-        .content();
+        .chatResponse();
+
+    String summary = response.getResult().getOutput().getText();
+    return new AiResult<>(summary, AiTokenUsage.from(response));
   }
 
   // ======================================================

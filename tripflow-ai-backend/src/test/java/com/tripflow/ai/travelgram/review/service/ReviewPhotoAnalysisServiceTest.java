@@ -18,7 +18,9 @@ import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.MockitoAnnotations;
 
+import com.tripflow.ai.travelgram.review.ai.agent.AiResult;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
+import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 
 /**
@@ -70,7 +72,7 @@ public class ReviewPhotoAnalysisServiceTest {
         // given: 정상 분석 결과
         String summary = "해질녘 바다와 함께한 산책";
         when(reviewImageAnalysisAgent.analyzeReviewImage(CONTENT_TYPE, IMAGE_BYTES))
-                .thenReturn(summary);
+                .thenReturn(new AiResult<>(summary, AiTokenUsage.empty()));
 
         // when
         reviewPhotoAnalysisService.analyzePhotoAndUpdateDb(PHOTO_ID, CONTENT_TYPE, IMAGE_BYTES);
@@ -99,7 +101,7 @@ public class ReviewPhotoAnalysisServiceTest {
     public void analyzePhoto_whenAgentReturnsInvalidSummary_recordsFailed(String invalidSummary) {
         // given: 예외는 없지만 결과물이 쓸 수 없는 값
         when(reviewImageAnalysisAgent.analyzeReviewImage(any(), any()))
-                .thenReturn(invalidSummary);
+                .thenReturn(new AiResult<>(invalidSummary, AiTokenUsage.empty()));
 
         // when
         reviewPhotoAnalysisService.analyzePhotoAndUpdateDb(PHOTO_ID, CONTENT_TYPE, IMAGE_BYTES);
