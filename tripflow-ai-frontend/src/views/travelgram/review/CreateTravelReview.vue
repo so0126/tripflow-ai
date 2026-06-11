@@ -88,11 +88,23 @@
                 <div>
                   <strong>AI가 사진을 분석하고 있어요... ({{ settledCount }}/{{ totalCount }})</strong>
                   <span class="small ms-1">잠시만 기다려주세요.</span>
-          </div>
+                </div>
+              </div>
+
+        <!-- 폴링 실패 안내 -->
+        <div v-if="pollingStatus === 'error'" class="alert alert-danger mt-3">
+          <strong>사진 상태 확인에 실패했어요.</strong>
+          <span class="small ms-1">{{ pollingErrorMessage }}</span>
+        </div>
+
+        <!-- 폴링 타임아웃 안내 -->
+        <div v-if="pollingStatus === 'timeout'" class="alert alert-warning mt-3">
+          <strong>사진 분석이 너무 오래 걸리고 있어요.</strong>
+          <span class="small ms-1">{{ pollingTimeoutMessage }}</span>
         </div>
 
         <!-- 분석 실패 안내 -->
-        <div v-if="!isAnalyzing && failedCount > 0" class="alert alert-warning mt-3">
+        <div v-if="pollingStatus === 'idle' && !isAnalyzing && failedCount > 0" class="alert alert-warning mt-3">
           <strong>사진 {{ failedCount }}장의 AI 분석에 실패했어요.</strong>
           <span class="small ms-1">실패한 사진을 다시 분석해야 다음 단계로 넘어갈 수 있어요.</span>
         </div>
@@ -146,6 +158,9 @@ const { currentPlanInfo: currentplanInfo, isReady, createReviewSession } = useRe
 })
 
 const {
+  pollingStatus,
+  pollingErrorMessage,
+  pollingTimeoutMessage,
   totalCount,
   settledCount,
   failedCount,

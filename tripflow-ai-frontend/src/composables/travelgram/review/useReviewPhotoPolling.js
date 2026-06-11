@@ -2,11 +2,14 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const POLLING_STATUS = {
-    IDLE: 'idle', //시작 전
-    POLLING: 'polling',// 3초 간격 상태 조회 중
-    ERROR: 'error', // 조회 실패 누적돼 중단된 상태
-    TIMEOUT: 'timeout',// 조회 횟수 상한 넘어 중단된 상태
+    IDLE: 'idle',
+    POLLING: 'polling',
+    ERROR: 'error',
+    TIMEOUT: 'timeout',
   }
+  const MAX_POLLING_ATTEMPTS = 60
+  const POLLING_ERROR_MESSAGE = '상태 확인에 실패했어요. 새로고침 해주세요.'
+  const POLLING_TIMEOUT_MESSAGE = '분석이 지연돼요. 잠시 후 재시도해주세요.'
 
   const pollingStatus = ref(POLLING_STATUS.IDLE)
   const pollingFailCount = ref(0)
@@ -20,7 +23,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const successCount = computed(() => uploadedImages.value.filter((image) => image.status === 'SUCCESS').length)
   const failedCount = computed(() => uploadedImages.value.filter((image) => image.status === 'FAILED').length)
   const allSettled = computed(() => totalCount.value > 0 && settledCount.value === totalCount.value)
-  const isAnalyzing = computed(() => totalCount.value > 0 && !allSettled.value)
+  const isAnalyzing = computed(() => pollingStatus.value === POLLING_STATUS.POLLING)
   const canProceed = computed(() => totalCount.value > 0 && successCount.value === totalCount.value)
 
   const resetPollingState = () => {
@@ -44,20 +47,37 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const checkAnalysisStatus = async () => {
     pollingAttemptCount.value += 1
 
-    const res = await api.getReviewPhotos(reviewStore.reviewPostId)
-    const serverPhotos = res.data.data || []
+    try {
+      const res = await api.getReviewPhotos(reviewStore.reviewPostId)
+      const serverPhotos = res.data.data || []
 
-    uploadedImages.value.forEach((image) => {
-      const match = serverPhotos.find((serverPhoto) => String(serverPhoto.id) === String(image.id))
-      if (match) {
-        image.status = match.status
-        image.summary = match.summary
+      uploadedImages.value.forEach((image) => {
+        const match = serverPhotos.find((serverPhoto) => String(serverPhoto.id) === String(image.id))
+        if (match) {
+          image.status = match.status
+          image.summary = match.summary
+        }
+      })
+
+      pollingFailCount.value = 0
+
+      if (allSettled.value) stopPolling()
+      if (pollingAttemptCount.value >= MAX_POLLING_ATTEMPTS && pollingStatus.value === POLLING_STATUS.POLLING) {
+        stopPolling(POLLING_STATUS.TIMEOUT)
       }
-    })
+    } catch (error) {
+      console.error('사진 분석 상태 조회 실패:', error)
+      pollingFailCount.value += 1
 
-    pollingFailCount.value = 0
+      if (pollingFailCount.value >= 3) {
+        stopPolling(POLLING_STATUS.ERROR)
+        return
+      }
 
-    if (allSettled.value) stopPolling()
+      if (pollingAttemptCount.value >= MAX_POLLING_ATTEMPTS) {
+        stopPolling(POLLING_STATUS.TIMEOUT)
+      }
+    }
   }
 
   const startPolling = () => {
@@ -87,6 +107,8 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
     pollingStatus,
     pollingFailCount,
     pollingAttemptCount,
+    pollingErrorMessage: POLLING_ERROR_MESSAGE,
+    pollingTimeoutMessage: POLLING_TIMEOUT_MESSAGE,
     totalCount,
     settledCount,
     successCount,

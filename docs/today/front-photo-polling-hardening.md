@@ -38,14 +38,14 @@
 
 공통 규칙은 다음과 같다.
 
-- [ ] `pollingStatus`를 추가한다.
-- [ ] `pollingFailCount`를 추가한다.
-- [ ] `pollingAttemptCount`를 추가한다.
-- [ ] `pollingTimer`를 추가한다.
-- [ ] `startPolling()`에서 실패 카운터와 시도 카운터를 모두 초기화한다.
-- [ ] `stopPolling()`은 타이머 해제와 상태 종료만 책임지도록 맞춘다.
-- [ ] 성공 응답이 오면 `pollingFailCount`를 0으로 리셋한다.
-- [ ] 종료 조건을 `allSettled`, 연속 실패, 최대 시도 횟수, 수동 종료 4가지로 정리한다.
+- [x] `pollingStatus`를 추가한다.
+- [x] `pollingFailCount`를 추가한다.
+- [x] `pollingAttemptCount`를 추가한다.
+- [x] `pollingTimer`를 추가한다.
+- [x] `startPolling()`에서 실패 카운터와 시도 카운터를 모두 초기화한다.
+- [x] `stopPolling()`은 타이머 해제와 상태 종료만 책임지도록 맞춘다.
+- [x] 성공 응답이 오면 `pollingFailCount`를 0으로 리셋한다.
+- [x] 종료 조건을 `allSettled`, 연속 실패, 최대 시도 횟수, 수동 종료 4가지로 정리한다.
 
 이 정리를 먼저 해두면 `#2`, `#3`, `#1`이 서로 상태를 덮어쓰지 않는다.
 
@@ -57,14 +57,14 @@
 
 **작업**
 
-- [ ] `checkAnalysisStatus()`를 try/catch로 감싼다.
-- [ ] 성공 응답 처리 직후 `pollingFailCount`를 0으로 리셋한다.
-- [ ] catch에서 `pollingFailCount`를 1 증가시킨다.
-- [ ] 실패 횟수가 3회 이상이면 `stopPolling()`을 호출한다.
-- [ ] 실패 종료 상태를 `pollingStatus = 'error'`로 맞춘다.
-- [ ] 요청 실패 안내 문구를 분리한다.
-- [ ] 타임아웃 안내 문구를 분리한다.
-- [ ] 기존 alert 패턴과 충돌하지 않도록 표시 위치를 정한다.
+- [x] `checkAnalysisStatus()`를 try/catch로 감싼다.
+- [x] 성공 응답 처리 직후 `pollingFailCount`를 0으로 리셋한다.
+- [x] catch에서 `pollingFailCount`를 1 증가시킨다.
+- [x] 실패 횟수가 3회 이상이면 `stopPolling()`을 호출한다.
+- [x] 실패 종료 상태를 `pollingStatus = 'error'`로 맞춘다.
+- [x] 요청 실패 안내 문구를 분리한다.
+- [x] 타임아웃 안내 문구를 분리한다.
+- [x] 기존 alert 패턴과 충돌하지 않도록 표시 위치를 정한다.
 
 **의도**
 
@@ -78,11 +78,11 @@
 
 **작업**
 
-- [ ] `pollingAttemptCount`를 증가시키는 지점을 정한다.
-- [ ] 최대 시도 횟수를 60회로 둔다.
-- [ ] 최대 시도 횟수 초과 시 `stopPolling()`을 호출한다.
-- [ ] 타임아웃 종료 상태를 `pollingStatus = 'timeout'`으로 맞춘다.
-- [ ] 타임아웃 안내 문구를 분리한다.
+- [x] `pollingAttemptCount`를 증가시키는 지점을 정한다.
+- [x] 최대 시도 횟수를 60회로 둔다.
+- [x] 최대 시도 횟수 초과 시 `stopPolling()`을 호출한다.
+- [x] 타임아웃 종료 상태를 `pollingStatus = 'timeout'`으로 맞춘다.
+- [x] 타임아웃 안내 문구를 분리한다.
 - [ ] 이번 범위에서는 백오프를 넣지 않는다.
 - [ ] 필요 시 다음 단계에서 `setTimeout` 기반으로 바꾸는 것을 메모해 둔다.
 
@@ -94,10 +94,10 @@ bounded work를 보장해서 분석이 영영 끝나지 않는 경우에도 UI�
 
 이 두 작업은 같은 루프 안에서 같이 작동해야 한다.
 
-- [ ] `startPolling()` 실행 시 두 카운터를 동시에 초기화한다.
-- [ ] `checkAnalysisStatus()` 성공 시 실패 카운터를 리셋한다.
-- [ ] 실패 누적 시 `error`로 종료한다.
-- [ ] `PENDING` 장기 지속 시 `timeout`으로 종료한다.
+- [x] `startPolling()` 실행 시 두 카운터를 동시에 초기화한다.
+- [x] `checkAnalysisStatus()` 성공 시 실패 카운터를 리셋한다.
+- [x] 실패 누적 시 `error`로 종료한다.
+- [x] `PENDING` 장기 지속 시 `timeout`으로 종료한다.
 - [ ] `handleReanalyze()`에서 기존 폴링을 종료한 뒤 새로 시작한다.
 - [ ] 재분석 시 이전 실패 이력이 다음 분석에 남지 않는지 확인한다.
 
