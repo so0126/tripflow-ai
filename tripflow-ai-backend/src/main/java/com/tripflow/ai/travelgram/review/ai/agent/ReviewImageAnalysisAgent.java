@@ -3,19 +3,19 @@ package com.tripflow.ai.travelgram.review.ai.agent;
 import java.util.List;
 
 import org.springframework.ai.chat.client.ChatClient;
-import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.messages.SystemMessage;
-
-import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
 import org.springframework.ai.chat.messages.UserMessage;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.content.Media;
 import org.springframework.core.io.ByteArrayResource;
 import org.springframework.core.io.Resource;
 import org.springframework.stereotype.Component;
 import org.springframework.util.MimeType;
 
-import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
+import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
+import com.tripflow.ai.travelgram.review.dto.response.PhotoAnalysisResult;
 
 @Component
 public class ReviewImageAnalysisAgent {
@@ -124,7 +124,7 @@ public class ReviewImageAnalysisAgent {
     // readValue(JSON문자열, 변환할클래스.class)
     try {
       return objectMapper.readValue(jsonResponse, PhotoAnalysisResult.class);
-    } catch (com.fasterxml.jackson.core.JsonProcessingException e) {
+    } catch (JsonProcessingException e) {
       throw new RuntimeException("Trip context analysis JSON 파싱 실패", e);
     }
   }
