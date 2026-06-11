@@ -16,7 +16,8 @@ Vue 3.5, Java 21, Spring Boot 3.4, Spring AI 1.0.0, MyBatis, PostgreSQL, AWS S3,
 
 ### 1. 리뷰 입력 데이터 기반 정리
 
-travel_place 테이블을 Naver Local로 채우기, hotel_seed 데모로 생성하기, 환경변수 정리
+travel_place 테이블을 Naver Local로 채우고 임베딩 백필, hotel_seed 데모로 생성하기, 환경변수 정리
+- 임베딩 백필, 스케줄링
 
 ### 2. 리뷰 Draft 생성 고도화
 
