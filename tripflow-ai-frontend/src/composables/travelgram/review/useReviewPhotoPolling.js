@@ -2,10 +2,10 @@ import { computed, onBeforeUnmount, ref } from 'vue'
 
 export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const POLLING_STATUS = {
-    IDLE: 'idle',
-    POLLING: 'polling',
-    ERROR: 'error',
-    TIMEOUT: 'timeout',
+    IDLE: 'idle', //시작 전
+    POLLING: 'polling',// 3초 간격 상태 조회 중
+    ERROR: 'error', // 조회 실패 누적돼 중단된 상태
+    TIMEOUT: 'timeout',// 조회 횟수 상한 넘어 중단된 상태
   }
 
   const pollingStatus = ref(POLLING_STATUS.IDLE)
@@ -61,7 +61,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   }
 
   const startPolling = () => {
-    if (pollingInterval.value) return
+    if (pollingInterval.value) return // 중복 시작 방지 가드, null이 아니면 폴링 중이라는 의미
 
     resetPollingState()
     pollingStatus.value = POLLING_STATUS.POLLING
