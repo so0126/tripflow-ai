@@ -168,11 +168,39 @@ const {
   canProceed,
   startPolling,
   handleReanalyze,
+  stopPolling,
 } = useReviewPhotoPolling({
   reviewStore,
   api,
   uploadedImages,
 })
+
+const restoreUploadedPhotosFromServer = async () => {
+  if (!reviewStore.reviewPostId) return
+
+  try {
+    const res = await api.getReviewPhotos(reviewStore.reviewPostId)
+    const serverPhotos = res.data.data || []
+
+    uploadedImages.value = serverPhotos.map((photo) => ({
+      id: photo.id,
+      url: photo.fileUrl,
+      status: photo.status,
+      summary: photo.summary,
+      orderIndex: photo.orderIndex,
+      uploading: false,
+    }))
+
+    const hasPendingPhoto = uploadedImages.value.some((photo) => photo.status === 'PENDING')
+    if (hasPendingPhoto) {
+      startPolling()
+    } else {
+      stopPolling()
+    }
+  } catch (error) {
+    console.error('리뷰 사진 복원 실패:', error)
+  }
+}
 
 const currentDayPlaces = computed(() => {
   if (!currentplanInfo.value?.itinerary) return []
@@ -230,6 +258,7 @@ const goBack = () => router.push({ name: 'Travelgram' })
 
 onMounted(async () => {
   await createReviewSession()
+  await restoreUploadedPhotosFromServer()
 })
 </script>
 
