@@ -1,8 +1,10 @@
 package com.tripflow.ai.travelgram.review.ai.agent;
 
 import org.springframework.ai.chat.client.ChatClient;
+import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.stereotype.Component;
 import com.tripflow.ai.travelgram.review.ai.dto.response.GeneratedStyleResponse;
+import com.tripflow.ai.travelgram.review.ai.log.AiTokenUsage;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import lombok.RequiredArgsConstructor;
 
@@ -13,7 +15,7 @@ public class ReviewStyleGenerateAgent {
     private final ChatClient.Builder chatClientBuilder;
     private final ObjectMapper objectMapper;
 
-    public GeneratedStyleResponse generateStyles(String tripJson, String mood, String travelType) {
+    public AiResult<GeneratedStyleResponse> generateStyles(String tripJson, String mood, String travelType) {
         ChatClient chatClient = chatClientBuilder.build();
 
         String systemPrompt = """
@@ -97,17 +99,20 @@ public class ReviewStyleGenerateAgent {
                 """, tripJson, mood, travelType);
 
         try {
-            String response = chatClient.prompt()
+            // content()만 뽑던 것을 chatResponse()로 받아 본문 + 토큰 사용량을 함께 들고 나간다.
+            ChatResponse chatResponse = chatClient.prompt()
                     .system(systemPrompt)
                     .user(userPrompt)
                     .call()
-                    .content();
+                    .chatResponse();
+
+            String response = chatResponse.getResult().getOutput().getText();
 
             // 마크다운 제거 (```json ...)
             String cleanJson = response.replaceAll("```json", "").replaceAll("```", "").trim();
 
             GeneratedStyleResponse result = objectMapper.readValue(cleanJson, GeneratedStyleResponse.class);
-            return result;
+            return new AiResult<>(result, AiTokenUsage.from(chatResponse));
 
         } catch (Exception e) {
             throw new RuntimeException("AI Style Generation Error");
