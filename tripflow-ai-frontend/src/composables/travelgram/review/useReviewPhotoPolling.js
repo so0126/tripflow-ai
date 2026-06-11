@@ -25,6 +25,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const allSettled = computed(() => totalCount.value > 0 && settledCount.value === totalCount.value)
   const isAnalyzing = computed(() => pollingStatus.value === POLLING_STATUS.POLLING)
   const canProceed = computed(() => totalCount.value > 0 && successCount.value === totalCount.value)
+  const showFailedAnalysisAlert = computed(() => pollingStatus.value === POLLING_STATUS.IDLE && failedCount.value > 0)
 
   const resetPollingState = () => {
     pollingStatus.value = POLLING_STATUS.IDLE
@@ -87,15 +88,23 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
     pollingStatus.value = POLLING_STATUS.POLLING
     pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
   }
+  // 재분석 성공시 
+  const restartPolling = () => {
+    clearPollingTimer()
+    pollingFailCount.value = 0
+    pollingAttemptCount.value = 0
+    pollingStatus.value = POLLING_STATUS.POLLING
+    pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
+  }
 
   const handleReanalyze = async (photoId) => {
     const image = uploadedImages.value.find((item) => String(item.id) === String(photoId))
+    // 재분석은 FAILED -> PENDING -> 분석 재시작 순서로 전이시켜야 한다.
     if (image) image.status = 'PENDING'
 
     try {
       await api.reanalyzePhoto(photoId)
-      stopPolling()
-      startPolling()
+      restartPolling()
     } catch (error) {
       console.error('재분석 요청 실패:', error)
       if (image) image.status = 'FAILED'
@@ -117,7 +126,9 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
     allSettled,
     isAnalyzing,
     canProceed,
+    showFailedAnalysisAlert,
     startPolling,
+    restartPolling,
     stopPolling,
     checkAnalysisStatus,
     handleReanalyze,

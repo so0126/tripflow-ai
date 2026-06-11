@@ -104,7 +104,7 @@
         </div>
 
         <!-- 분석 실패 안내 -->
-        <div v-if="pollingStatus === 'idle' && !isAnalyzing && failedCount > 0" class="alert alert-warning mt-3">
+        <div v-if="showFailedAnalysisAlert" class="alert alert-warning mt-3">
           <strong>사진 {{ failedCount }}장의 AI 분석에 실패했어요.</strong>
           <span class="small ms-1">실패한 사진을 다시 분석해야 다음 단계로 넘어갈 수 있어요.</span>
         </div>
@@ -166,6 +166,7 @@ const {
   failedCount,
   isAnalyzing,
   canProceed,
+  showFailedAnalysisAlert,
   startPolling,
   handleReanalyze,
   stopPolling,
