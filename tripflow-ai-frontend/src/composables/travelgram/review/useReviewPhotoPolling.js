@@ -1,6 +1,16 @@
 import { computed, onBeforeUnmount, ref } from 'vue'
 
 export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
+  const POLLING_STATUS = {
+    IDLE: 'idle',
+    POLLING: 'polling',
+    ERROR: 'error',
+    TIMEOUT: 'timeout',
+  }
+
+  const pollingStatus = ref(POLLING_STATUS.IDLE)
+  const pollingFailCount = ref(0)
+  const pollingAttemptCount = ref(0)
   const pollingInterval = ref(null)
 
   const totalCount = computed(() => uploadedImages.value.length)
@@ -13,14 +23,27 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   const isAnalyzing = computed(() => totalCount.value > 0 && !allSettled.value)
   const canProceed = computed(() => totalCount.value > 0 && successCount.value === totalCount.value)
 
-  const stopPolling = () => {
-    if (pollingInterval.value) {
-      clearInterval(pollingInterval.value)
-      pollingInterval.value = null
-    }
+  const resetPollingState = () => {
+    pollingStatus.value = POLLING_STATUS.IDLE
+    pollingFailCount.value = 0
+    pollingAttemptCount.value = 0
+  }
+
+  const clearPollingTimer = () => {
+    if (!pollingInterval.value) return
+
+    clearInterval(pollingInterval.value)
+    pollingInterval.value = null
+  }
+
+  const stopPolling = (nextStatus = POLLING_STATUS.IDLE) => {
+    clearPollingTimer()
+    pollingStatus.value = nextStatus
   }
 
   const checkAnalysisStatus = async () => {
+    pollingAttemptCount.value += 1
+
     const res = await api.getReviewPhotos(reviewStore.reviewPostId)
     const serverPhotos = res.data.data || []
 
@@ -32,11 +55,16 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
       }
     })
 
+    pollingFailCount.value = 0
+
     if (allSettled.value) stopPolling()
   }
 
   const startPolling = () => {
     if (pollingInterval.value) return
+
+    resetPollingState()
+    pollingStatus.value = POLLING_STATUS.POLLING
     pollingInterval.value = setInterval(checkAnalysisStatus, 3000)
   }
 
@@ -56,6 +84,9 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
   onBeforeUnmount(stopPolling)
 
   return {
+    pollingStatus,
+    pollingFailCount,
+    pollingAttemptCount,
     totalCount,
     settledCount,
     successCount,
