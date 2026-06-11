@@ -7,7 +7,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
     ERROR: 'error',
     TIMEOUT: 'timeout',
   }
-  const MAX_POLLING_ATTEMPTS = 60
+  const MAX_POLLING_ATTEMPTS = 20 // 1분
   const POLLING_ERROR_MESSAGE = '상태 확인에 실패했어요. 새로고침 해주세요.'
   const POLLING_TIMEOUT_MESSAGE = '분석이 지연돼요. 잠시 후 재시도해주세요.'
 
@@ -94,6 +94,7 @@ export function useReviewPhotoPolling({ reviewStore, api, uploadedImages }) {
 
     try {
       await api.reanalyzePhoto(photoId)
+      stopPolling()
       startPolling()
     } catch (error) {
       console.error('재분석 요청 실패:', error)
