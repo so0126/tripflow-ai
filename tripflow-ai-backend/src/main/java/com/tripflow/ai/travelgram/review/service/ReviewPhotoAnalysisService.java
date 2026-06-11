@@ -5,6 +5,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
+import com.tripflow.ai.travelgram.review.ai.agent.AiResult;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewImageAnalysisAgent;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiLog;
 import com.tripflow.ai.travelgram.review.ai.log.ReviewAiStep;
@@ -26,8 +27,9 @@ public class ReviewPhotoAnalysisService {
     public void analyzePhotoAndUpdateDb(Long photoId, String contentType, byte[] imageBytes) {
         long startedAt = System.nanoTime();
         try {
-            // 1. AI 분석 (시간이 오래 걸리는 작업)
-            String summary = reviewImageAnalysisAgent.analyzeReviewImage(contentType, imageBytes);
+            // 1. AI 분석 (시간이 오래 걸리는 작업) — 본문 + 토큰 사용량을 함께 받는다.
+            AiResult<String> result = reviewImageAnalysisAgent.analyzeReviewImage(contentType, imageBytes);
+            String summary = result.content();
 
             // 1-1. 결과 검증: 예외가 안 났어도 쓸 수 없는 값이면 실패로 본다.
             //      (모델이 분석을 거부하면 영어 거절문/빈 값/"{}" 등을 뱉을 수 있음)
@@ -46,7 +48,8 @@ public class ReviewPhotoAnalysisService {
                     null,
                     photoId,
                     null,
-                    elapsedMs));
+                    elapsedMs,
+                    result.usage()));
         } catch (Exception e) {
             // 분석 실패 → status=FAILED로 기록 (프론트 폴링이 멈추고 재시도 UI를 띄울 수 있게)
             reviewPhotoDao.updatePhotoStatus(photoId, "FAILED");

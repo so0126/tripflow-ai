@@ -20,6 +20,7 @@ import com.tripflow.ai.planner.plan.dto.entity.CurrentActivity;
 import com.tripflow.ai.planner.plan.dto.entity.PlanPlace;
 import com.tripflow.ai.common.global.exception.BusinessException;
 import com.tripflow.ai.travelgram.review.exception.errorcode.ReviewErrorCode;
+import com.tripflow.ai.travelgram.review.ai.agent.AiResult;
 import com.tripflow.ai.travelgram.review.ai.agent.PlanTitleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.agent.ReviewStyleGenerateAgent;
 import com.tripflow.ai.travelgram.review.ai.assembler.ReviewInputJsonAssembler;
@@ -213,8 +214,9 @@ public class ReviewAiService {
             String mood = post.getOverallMoods();
             String type = post.getTravelType();
 
-            // 3. Agent 호출 (AI 생성)
-            GeneratedStyleResponse aiResponse = styleAgent.generateStyles(inputJson, mood, type);
+            // 3. Agent 호출 (AI 생성) — 본문 + 토큰 사용량을 함께 받는다.
+            AiResult<GeneratedStyleResponse> aiResult = styleAgent.generateStyles(inputJson, mood, type);
+            GeneratedStyleResponse aiResponse = aiResult.content();
 
             // 4. 분석 이력 저장 (AiReviewAnalysis)
             // output_json은 나중에 디버깅용으로 AI 전체 응답을 저장
@@ -222,6 +224,9 @@ public class ReviewAiService {
             try {
                 outputJsonString = objectMapper.writeValueAsString(aiResponse);
             } catch (Exception e) {
+                // outputJson은 디버깅용 필드 → 직렬화 실패로 스타일 생성 흐름을 끊지 않는다.
+                // 단, 조용히 삼키지 말고 실패는 남겨 관찰 가능하게 한다.
+                log.warn("outputJson 직렬화 실패 (분석 이력 저장은 계속) reviewPostId={}", reviewPostId, e);
             }
 
             AiReviewAnalysis analysis = AiReviewAnalysis.builder()
@@ -276,7 +281,8 @@ public class ReviewAiService {
                     reviewPostId,
                     null,
                     analysis.getId(),
-                    elapsedMs));
+                    elapsedMs,
+                    aiResult.usage()));
             return resultList;
         } catch (BusinessException e) {
             // 의미 있는 도메인 예외(예: POST_NOT_FOUND 404)는 그대로 통과시킨다.
