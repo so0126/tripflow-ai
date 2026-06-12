@@ -1,6 +1,5 @@
 package com.tripflow.ai.travelgram.review.ai.service;
 
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,7 +7,6 @@ import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import com.tripflow.ai.planner.plan.dao.PlanDao;
 import com.tripflow.ai.planner.plan.dao.PlanDayDao;
@@ -35,7 +33,6 @@ import com.tripflow.ai.travelgram.review.ai.dto.response.GeneratedStyleResponse;
 import com.tripflow.ai.travelgram.review.dao.ReviewPhotoDao;
 import com.tripflow.ai.travelgram.review.dao.ReviewPostDao;
 import com.tripflow.ai.travelgram.review.dto.entity.ReviewPost;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.node.ObjectNode;
 
 import lombok.RequiredArgsConstructor;
@@ -57,9 +54,9 @@ public class ReviewAiService {
 
     private final AiReviewDao aiReviewDao;
 
-    private final ReviewStyleGenerateAgent styleAgent; // 추가 주입
-    private final ReviewPostDao reviewPostDao; // 추가 주입
-    private final ObjectMapper objectMapper; // 추가 주입
+    private final ReviewStyleGenerateAgent styleAgent;
+    private final ReviewPostDao reviewPostDao;
+    private final ReviewAiPersistService persistService;
 
     public ObjectNode createPlanInputJson(Long planId) {
         // 🟦 1) plan 전체 조회
@@ -99,7 +96,6 @@ public class ReviewAiService {
      * [단건 처리] 
      * 특정 Plan을 조회했을 때, 완료된 여행인데 제목이 없다면 생성 후 업데이트
      */
-    @Transactional
     public String ensurePlanTitle(Long planId) {
         Plan plan = planDao.selectPlanById(planId);
         
@@ -134,7 +130,6 @@ public class ReviewAiService {
      * DB에 있는 '완료되었지만 제목 없는' 모든 Plan을 찾아서 일괄 업데이트
      * (스케줄러나 관리자 API에서 호출용)
      */
-    @Transactional
     public int generateTitlesForMissingOnes() {
         // 1. 대상 조회
         List<Plan> targets = planDao.selectEndedPlansWithNoTitle();
@@ -176,8 +171,11 @@ public class ReviewAiService {
 
     /**
      * AI 리뷰 스타일 생성 및 저장 (메인 로직)
+     *
+     * @Transactional을 붙이지 않는다. LLM 호출(수십 초)이 트랜잭션 안에 있으면
+     * 그 시간 동안 DB 커넥션이 점유되어 풀이 고갈될 수 있기 때문이다.
+     * DB 쓰기 묶음은 persistService.persistStyleResults()가 별도 트랜잭션으로 담당한다.
      */
-    @Transactional
     public List<AiReviewStyleResponse> createAndSaveStyles(Long planId, Long reviewPostId) {
         long startedAt = System.nanoTime();
         try {
@@ -206,7 +204,6 @@ public class ReviewAiService {
             String inputJson = inputNode.toPrettyString();
 
             // 2. ReviewPost에서 Mood, Type 조회
-            // (ReviewPostDao에 selectById가 있다고 가정하거나 추가 필요)
             ReviewPost post = reviewPostDao.selectReviewPostById(reviewPostId);
             if (post == null)
                 throw new BusinessException(ReviewErrorCode.POST_NOT_FOUND);
@@ -214,65 +211,11 @@ public class ReviewAiService {
             String mood = post.getOverallMoods();
             String type = post.getTravelType();
 
-            // 3. Agent 호출 (AI 생성) — 본문 + 토큰 사용량을 함께 받는다.
+            // 3. Agent 호출 (AI 생성) — DB 커넥션을 잡지 않은 상태에서 실행
             AiResult<GeneratedStyleResponse> aiResult = styleAgent.generateStyles(inputJson, mood, type);
-            GeneratedStyleResponse aiResponse = aiResult.content();
 
-            // 4. 분석 이력 저장 (AiReviewAnalysis)
-            // output_json은 나중에 디버깅용으로 AI 전체 응답을 저장
-            String outputJsonString = "";
-            try {
-                outputJsonString = objectMapper.writeValueAsString(aiResponse);
-            } catch (Exception e) {
-                // outputJson은 디버깅용 필드 → 직렬화 실패로 스타일 생성 흐름을 끊지 않는다.
-                // 단, 조용히 삼키지 말고 실패는 남겨 관찰 가능하게 한다.
-                log.warn("outputJson 직렬화 실패 (분석 이력 저장은 계속) reviewPostId={}", reviewPostId, e);
-            }
-
-            AiReviewAnalysis analysis = AiReviewAnalysis.builder()
-                    .reviewPostId(reviewPostId)
-                    .createdAt(OffsetDateTime.now())
-                    .inputJson(inputJson)
-                    .outputJson(outputJsonString)
-                    .build();
-
-            aiReviewDao.insertAiReviewAnalysis(analysis); // id 생성됨
-
-            List<AiReviewStyleResponse> resultList = new ArrayList<>();
-            // 5. Save Styles & Hashtags
-            for (GeneratedStyleResponse.StyleItem item : aiResponse.getStyles()) {
-                // 💡 [추가] 캡션 문자열 내에 있는 해시태그(#단어) 제거 로직
-                // #으로 시작하고 공백 전까지 이어지는 단어들을 모두 빈 문자열로 치환
-                String cleanCaption = item.getCaption()
-                        .replaceAll("#[\\w가-힣]+", "") // 해시태그 패턴 제거
-                        .trim();
-                // 5-1. Save Style
-                AiReviewStyle style = AiReviewStyle.builder()
-                        .reviewAnalysisId(analysis.getId())
-                        .name(item.getToneName())
-                        .toneCode(item.getToneCode())
-                        .createdAt(OffsetDateTime.now())
-                        .caption(cleanCaption) // Make sure this matches your DB column
-                        .build();
-
-                aiReviewDao.insertAiReviewStyle(style);
-
-                // 5-2. Save Hashtags
-                List<AiReviewHashtag> savedHashtags = new ArrayList<>();
-                for (String tagName : item.getHashtags()) {
-                    String cleanTagName = tagName.replace("#", "");
-                    AiReviewHashtag tag = AiReviewHashtag.builder()
-                            .reviewStyleId(style.getId())
-                            .name(cleanTagName)
-                            .createdAt(OffsetDateTime.now())
-                            .build();
-                    aiReviewDao.insertAiReviewHashtag(tag);
-                    savedHashtags.add(tag);
-                }
-
-                // 5-3. Add to Result List
-                resultList.add(new AiReviewStyleResponse(style, savedHashtags));
-            }
+            // 4+5. DB 쓰기 묶음 — 별도 서비스를 통해 @Transactional 적용
+            List<AiReviewStyleResponse> resultList = persistService.persistStyleResults(reviewPostId, inputJson, aiResult);
 
             long elapsedMs = (System.nanoTime() - startedAt) / 1_000_000;
             log.info("{}", ReviewAiLog.success(
@@ -280,7 +223,7 @@ public class ReviewAiService {
                     planId,
                     reviewPostId,
                     null,
-                    analysis.getId(),
+                    null,
                     elapsedMs,
                     aiResult.usage()));
             return resultList;

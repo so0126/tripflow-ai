@@ -30,7 +30,6 @@ public class ReviewPostService {
     private final ReviewHashtagDao reviewHashtagDao;
     private final ReviewImageAnalysisAgent reviewImageAnalysisAgent;
 
-    @Transactional
     public ReviewCreateResponse createReview(Long planId) {
         // 멱등 처리: 같은 plan으로 재진입(새로고침/뒤로가기)해도 빈 draft가 쌓이지 않도록,
         // 아직 게시되지 않은 draft가 있으면 그대로 재사용한다.
@@ -84,12 +83,10 @@ public class ReviewPostService {
         }
     }
 
-    @Transactional
     public void selectStyle(Long reviewPostId, Long reviewStyleId) {
         reviewPostDao.updateReviewPostStyleIdById(reviewPostId, reviewStyleId);
     }
 
-    @Transactional
     public void updateCaption(Long reviewPostId, String caption) {
         reviewPostDao.updateReviewPostCaptionIdById(reviewPostId, caption);
     }

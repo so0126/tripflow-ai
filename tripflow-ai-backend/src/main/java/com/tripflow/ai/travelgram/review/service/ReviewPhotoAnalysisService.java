@@ -23,7 +23,6 @@ public class ReviewPhotoAnalysisService {
     // 풀 이름을 명시해 사진 분석 전용 풀(AsyncConfig.photoAnalysisExecutor)에서 돌린다.
     // 이름을 비우면 Spring Boot 기본 풀(무제한 큐)로 떨어지므로 격리/백프레셔가 적용되지 않는다.
     @Async("photoAnalysisExecutor")
-    @Transactional
     public void analyzePhotoAndUpdateDb(Long photoId, String contentType, byte[] imageBytes) {
         long startedAt = System.nanoTime();
         try {
