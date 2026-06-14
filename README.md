@@ -6,7 +6,7 @@ TripFlow AI는 기존 **AI Travel Manager** 프로젝트를 기반으로, 여행
 
 ### Tech Stack
 
-Vue 3.5, Java 21, Spring Boot 3.4, Spring AI 1.0.0, MyBatis, PostgreSQL, AWS S3, OpenAI API, Naver Local Search API
+Vue 3.5, Java 21, Spring Boot 3.4, Spring AI 1.0.0, MyBatis, PostgreSQL, AWS S3, Naver Local Search API
 
 > 기존 프로젝트에는 추가 외부 API와 기능이 포함되어 있으나, 이 README에서는 개인 개선 범위와 직접 관련 있는 기술을 중심으로 정리합니다.
 
