@@ -1,6 +1,20 @@
 # TripFlow AI
 
-> AI Travel Manager 팀 프로젝트에서 담당했던 **Travelgram 리뷰 생성 흐름**을 개인적으로 이어받아 고도화한 프로젝트입니다.
+AI Travel Manager 리뷰 생성 기능을 운영 환경을 고려하여 고도화한 프로젝트입니다.
+
+### 주요 개선
+
+- Async 기반 AI 처리
+- 상태관리(PENDING/SUCCESS/FAILED)
+- DB 구조 개선
+- 데이터 중복 방지
+
+
+## 🖥 실행 화면
+![review](docs/images/review.gif)
+
+## 🗄 ERD
+![ERD](docs/images/erd.png)
 
 ---
 
@@ -155,9 +169,10 @@ tripflow-ai/
 │   └── src/
 │       └── views/travelgram/review/ # 리뷰 생성 플로우 화면
 └── docs/                         # 작업 계획 및 분석 문서
-    ├── 02-review-draft/          # 리뷰 초안 생성 고도화 계획
+    ├── plan/                     # 고도화 계획
     ├── completed/                # 완료된 작업 상세 기록
-    └── templates/                # 작업 기록 템플릿
+    ├── templates/                # 작업 기록 템플릿
+    └── images/                   # 관련 이미지
 ```
 
 ---
